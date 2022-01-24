@@ -22,6 +22,7 @@ from .. import (
 
 # Update "status" field on Netbox Virtual Machine based on Proxmox information
 def status(netbox_vm, proxmox_vm):
+    print("[DEBUG] Update 'status' field on Netbox Virtual Machine based on Proxmox information")
     # False = status not changed on Netbox
     # True  = status changed on Netbox
     status_updated = False
@@ -35,17 +36,21 @@ def status(netbox_vm, proxmox_vm):
     if (proxmox_status == 'running' and netbox_status == 'active') or (
             proxmox_status == 'stopped' and netbox_status == 'offline'):
         # Status not updated
+        print("[DEBUG] Status not updated")
         status_updated = False
 
     # Change status to active on Netbox if it's offline
+        print("[DEBUG] Change status to active on Netbox if it's offline")
     elif proxmox_status == 'stopped' and netbox_status == 'active':
         netbox_vm.status.value = 'offline'
         netbox_vm.save()
 
         # Status updated
+        print("[DEBUG] Status updated")
         status_updated = True
 
     # Change status to offline on Netbox if it's active
+        print("[DEBUG] Change status to offline on Netbox if it's active")
     elif proxmox_status == 'running' and netbox_status == 'offline':
         netbox_vm.status.value = 'active'
         netbox_vm.save()
@@ -54,6 +59,7 @@ def status(netbox_vm, proxmox_vm):
         status_updated = True
 
     # Status not expected
+        print("[DEBUG] Status not expected")
     else:
         # Status doesn't need to change
         status_updated = False
@@ -105,23 +111,29 @@ def http_update_custom_fields(**kwargs):
 
 # Update 'custom_fields' field on Netbox Virtual Machine based on Proxbox
 def custom_fields(netbox_vm, proxmox_vm):
+    print("[DEBUG] Update 'custom_fields' field on Netbox Virtual Machine based on Proxbox")
     # Create the new 'custom_field' with info from Proxmox
+    print("[DEBUG] Create the new 'custom_field' with info from Proxmox")
     custom_fields_update = {}
 
     # Check if there is 'custom_field' configured on Netbox
+    print("[DEBUG] Check if there is 'custom_field' configured on Netbox")
     if len(netbox_vm.custom_fields) == 0:
         print("[ERROR] There's no 'Custom Fields' registered by the Netbox Plugin user")
 
     # If any 'custom_field' configured, get it and update, if necessary.
+        print("[DEBUG] If any 'custom_field' configured, get it and update, if necessary.")
     elif len(netbox_vm.custom_fields) > 0:
 
         # Get current configured custom_fields
+        print("[DEBUG] Get current configured custom_fields.")
         custom_fields_names = list(netbox_vm.custom_fields.keys())
 
         #
         # VERIFY IF CUSTOM_FIELDS EXISTS AND THEN UPDATE INFORMATION, IF NECESSARY.
         #
         # Custom Field 'proxmox_id'
+        print("[DEBUG] VERIFY IF CUSTOM_FIELDS EXISTS AND THEN UPDATE INFORMATION, IF NECESSARY.")
         if 'proxmox_id' in custom_fields_names:
             if netbox_vm.custom_fields.get("proxmox_id") != proxmox_vm['vmid']:
                 custom_fields_update["proxmox_id"] = proxmox_vm['vmid']
@@ -129,6 +141,7 @@ def custom_fields(netbox_vm, proxmox_vm):
             print("[ERROR] 'proxmox_id' custom field not registered yet or configured incorrectly]")
 
         # Custom Field 'proxmox_node'
+        print("[DEBUG] Custom Field 'proxmox_node'")
         if 'proxmox_node' in custom_fields_names:
             if netbox_vm.custom_fields.get("proxmox_node") != proxmox_vm['node']:
                 custom_fields_update["proxmox_node"] = proxmox_vm['node']
@@ -136,6 +149,7 @@ def custom_fields(netbox_vm, proxmox_vm):
             print("[ERROR] 'proxmox_node' custom field not registered yet or configured incorrectly")
 
         # Custom Field 'proxmox_type'
+        print("[DEBUG] Custom Field 'proxmox_type'")
         if 'proxmox_type' in custom_fields_names:
             if netbox_vm.custom_fields.get("proxmox_type") != proxmox_vm['type']:
                 custom_fields_update["proxmox_type"] = proxmox_vm['type']
@@ -143,9 +157,11 @@ def custom_fields(netbox_vm, proxmox_vm):
             print("[ERROR] 'proxmox_type' custom field not registered yet or configured incorrectly")
 
         # Only updates information if changes found
+        print("[DEBUG] Only updates information if changes found")
         if len(custom_fields_update) > 0:
 
             # As pynetbox does not have a way to update custom_fields, use API HTTP request
+            print("[DEBUG] As pynetbox does not have a way to update custom_fields, use API HTTP request")
             custom_field_updated = http_update_custom_fields(
                 domain_with_http=NETBOX,
                 token=NETBOX_TOKEN,
@@ -156,6 +172,7 @@ def custom_fields(netbox_vm, proxmox_vm):
             )
 
             # Verify HTTP reply CODE
+            print("[DEBUG] Verify HTTP reply CODE")
             if custom_field_updated != 200:
                 print(
                     "[ERROR] Some error occured trying to update 'custom_fields' through HTTP Request. HTTP Code: {}. -> {}".format(
@@ -164,6 +181,7 @@ def custom_fields(netbox_vm, proxmox_vm):
 
             else:
                 # If none error occured, considers VM updated.
+                print("[DEBUG] If none error occured, considers VM updated.")
                 return True
 
         return False
@@ -171,11 +189,13 @@ def custom_fields(netbox_vm, proxmox_vm):
 
 # Update 'local_context_data' field on Netbox Virtual Machine based on Proxbox
 def local_context_data(netbox_vm, proxmox_vm):
+    print("[DEBUG] Update 'local_context_data' field on Netbox Virtual Machine based on Proxbox")
     current_local_context = netbox_vm.local_context_data
 
     proxmox_values = {}
 
     # Add and change values from Proxmox
+    print("[DEBUG] Add and change values from Proxmox")
     proxmox_values["name"] = proxmox_vm["name"]
     proxmox_values["url"] = "https://{}:{}".format(PROXMOX, PROXMOX_PORT)  # URL
     proxmox_values["id"] = proxmox_vm["vmid"]  # VM ID
@@ -191,6 +211,7 @@ def local_context_data(netbox_vm, proxmox_vm):
     proxmox_values["vcpu"] = proxmox_vm["maxcpu"]  # Add the 'GB' unit of measurement
 
     # Verify if 'local_context' is empty and if true, creates initial values.
+    print("[DEBUG] Verify if 'local_context' is empty and if true, creates initial values.")
     if current_local_context == None:
         netbox_vm.local_context_data = {"proxmox": proxmox_values}
         netbox_vm.save()
@@ -198,6 +219,7 @@ def local_context_data(netbox_vm, proxmox_vm):
 
     # Compare current Netbox values with Porxmox values
     elif current_local_context.get('proxmox') != proxmox_values:
+        print("[DEBUG] Compare current Netbox values with Porxmox values")
         # Update 'proxmox' key on 'local_context_data'
         current_local_context.update(proxmox=proxmox_values)
 
@@ -214,6 +236,7 @@ def local_context_data(netbox_vm, proxmox_vm):
 
 # Updates following fields based on Proxmox: "vcpus", "memory", "disk", if necessary.
 def resources(netbox_vm, proxmox_vm):
+    print("[DEBUG] Updates following fields based on Proxmox: 'vcpus', 'memory', 'disk', if necessary.")
     # Save values from Proxmox
     vcpus = float(proxmox_vm["maxcpu"])
 
@@ -229,8 +252,10 @@ def resources(netbox_vm, proxmox_vm):
     new_resources_json = {}
 
     # Compare VCPU
+    print("[DEBUG] Compare VCPU")
     if netbox_vm.vcpus != None:
         # Convert Netbox VCPUs to float, since it is coming as string from Netbox
+        print("[DEBUG] Convert Netbox VCPUs to float, since it is coming as string from Netbox")
         netbox_vm.vcpus = float(netbox_vm.vcpus)
 
         if netbox_vm.vcpus != vcpus:
@@ -240,6 +265,7 @@ def resources(netbox_vm, proxmox_vm):
         new_resources_json["vcpus"] = vcpus
 
     # Compare Memory
+    print("[DEBUG] Compare Memory")
     if netbox_vm.memory != None:
         if netbox_vm.memory != memory_Mb:
             new_resources_json["memory"] = memory_Mb
@@ -248,6 +274,7 @@ def resources(netbox_vm, proxmox_vm):
         new_resources_json["memory"] = memory_Mb
 
     # Compare Disk
+    print("[DEBUG] Compare Disk")
     if netbox_vm.disk != None:
         if netbox_vm.disk != disk_Gb:
             new_resources_json["disk"] = disk_Gb
@@ -256,6 +283,7 @@ def resources(netbox_vm, proxmox_vm):
         new_resources_json["disk"] = disk_Gb
 
     # If new information found, save it to Netbox object.
+    print("[DEBUG] If new information found, save it to Netbox object.")
     if len(new_resources_json) > 0:
         resources_updated = netbox_vm.update(new_resources_json)
 
@@ -296,18 +324,23 @@ def get_ip(node, vmid, type):
 def add_ip(netbox_vm, proxmox_vm):
     try:
         # Get the ip from the configuration of the vm
+        print("[DEBUG] Get the ip from the configuration of the vm")
         ip_addresses = get_ip(proxmox_vm['node'], proxmox_vm['vmid'], proxmox_vm['type'])
         # if no ip is retrieve do nothing
+        print("[DEBUG] if no ip is retrieve do nothing")
         if ip_addresses is None:
             return False
         # Check if the vm has already assigned a main ip address
+        print("[DEBUG] Check if the vm has already assigned a main ip address")
         if netbox_vm.primary_ip4 is None:
             # Create the interface that is going to allocate the ip
+            print("[DEBUG] Create the interface that is going to allocate the ip")
             virtual_machine = netbox_vm.id
             name = 'eth0'
             new_interface_json = {"virtual_machine": virtual_machine, "name": name}
             vm_interface = nb.virtualization.interfaces.create(new_interface_json)
             # Create the ip address and link it to the interface previously created
+            print("[DEBUG] Create the ip address and link it to the interface previously created")
             address = {
                 "address": ip_addresses,
                 "assigned_object_type": "virtualization.vminterface",
@@ -315,11 +348,13 @@ def add_ip(netbox_vm, proxmox_vm):
             }
             netbox_ip = nb.ipam.ip_addresses.create(address)
             # Associate the ip address to the vm
+            print("[DEBUG] Associate the ip address to the vm")
             netbox_vm.primary_ip = netbox_ip
             netbox_vm.primary_ip4 = netbox_ip
             netbox_vm.save()
         else:
             # Update the ip address associated to the interface
+            print("[DEBUG] Update the ip address associated to the interface")
             id = netbox_vm.primary_ip4.id
             current_ip = nb.ipam.ip_addresses.get(id=id)
             current_ip.address = ip_addresses

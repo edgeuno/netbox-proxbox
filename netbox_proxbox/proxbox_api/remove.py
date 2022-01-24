@@ -9,15 +9,19 @@ from .plugins_config import (
 # Verify if VM/CT exists on Proxmox
 def is_vm_on_proxmox(netbox_vm):
     # Get json of all virtual machines from Proxmox
+    print("[DEBUG] Get json of all virtual machines from Proxmox")
     all_proxmox_vms = proxmox.cluster.resources.get(type='vm')
 
     # Netbox name
+    print("[DEBUG] Netbox name")
     netbox_name = netbox_vm.name
 
     # Search Netbox local_context
+    print("[DEBUG] Search Netbox local_context")
     local_context = netbox_vm.local_context_data
 
     # Analyze local_context of VM
+    print("[DEBUG] Analyze local_context of VM")
     if local_context == None:
         print('[WARNING] "local_context_data" not filled. -> {}'.format(netbox_name))
 
@@ -39,12 +43,15 @@ def is_vm_on_proxmox(netbox_vm):
 
 
     # List names of VM/CT's from Proxmox
+    print("[DEBUG] List names of VM/CT's from Proxmox")
     names = []
 
     # List ID's of VM/CT's from Proxmox
+    print("[DEBUG] List ID's of VM/CT's from Proxmox")
     vmids = []
 
     # Compare Netbox VM with all Proxmox VMs and verify if Netbox VM exist on Proxmox.
+    print("[DEBUG] Compare Netbox VM with all Proxmox VMs and verify if Netbox VM exist on Proxmox.")
     for i in range(len(all_proxmox_vms)):
         name = all_proxmox_vms[i].get("name")
         names.append(name)
@@ -57,15 +64,18 @@ def is_vm_on_proxmox(netbox_vm):
     id_on_px = False
 
     # Search VM on Proxmox by using name
+    print("[DEBUG] Search VM on Proxmox by using name")
     try:
         name_index = names.index(netbox_name)      
     except:
         name_on_px = False
     else:
         # NAME exists on Proxmox
+        print("[DEBUG] NAME exists on Proxmox")
         name_on_px = True
         
         # If 'local_context' is null, try updating it to be able to get ID from VM
+        print("[DEBUG] If 'local_context' is null, try updating it to be able to get ID from VM")
         if local_context == None:
             local_context_updated = updates.local_context_data(netbox_vm, all_proxmox_vms[name_index])
 
@@ -84,15 +94,18 @@ def is_vm_on_proxmox(netbox_vm):
 
 
     # Search VM on Proxmox by using ID
+    print("[DEBUG] Search VM on Proxmox by using ID")
     try:
         id_index = vmids.index(netbox_id)
     except:
         id_on_px = False
     else:
         # NAME exists on Proxmox
+        print("[DEBUG] NAME exists on Proxmox")
         id_on_px = True
 
     # Verify if VM exists
+    print("[DEBUG] Verify if VM exists")
     if name_on_px == True:
         if id_on_px == True:
             return True
@@ -101,12 +114,14 @@ def is_vm_on_proxmox(netbox_vm):
         return True
     
     # Comparison failed, not able to find VM on Proxmox
+    print("[DEBUG] Comparison failed, not able to find VM on Proxmox")
     return False
 
 def all():
     json_vm_all = []
     
     # Get all VM/CTs from Netbox
+    print("[DEBUG] Get all VM/CTs from Netbox")
     netbox_all_vms = nb.virtualization.virtual_machines.all()
 
     for nb_vm_each in netbox_all_vms:
@@ -118,6 +133,7 @@ def all():
         json_vm["name"] = netbox_name
 
         # Verify if VM exists on Proxmox
+        print("[DEBUG] Verify if VM exists on Proxmox")
         vm_on_proxmox = is_vm_on_proxmox(nb_vm_each)
 
         if vm_on_proxmox == True:
@@ -129,11 +145,13 @@ def all():
         
         # If VM does not exist on Proxmox, delete VM on Netbox.
         elif vm_on_proxmox == False:
+            print("[DEBUG] If VM does not exist on Proxmox, delete VM on Netbox.")
             log_message = "[WARNING] VM exists on Netbox, but not on Proxmox. Delete it!  -> {}".format(netbox_name)
             print(log_message)
             log.append(log_message)
 
             # Only delete VM that has proxbox tag registered
+            print("[DEBUG] Only delete VM that has proxbox tag registered")
             delete_vm = False
 
             if len(netbox_obj.tags) > 0:
@@ -144,6 +162,7 @@ def all():
                         #
                         # DELETE THE VM/CT
                         #
+                        print("[DEBUG] DELETE THE VM/CT")
                         delete_vm = netbox_obj.delete()
                     
                     else:
