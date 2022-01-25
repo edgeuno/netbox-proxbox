@@ -214,6 +214,7 @@ def local_context_data(netbox_vm, proxmox_vm):
     print("[DEBUG] Verify if 'local_context' is empty and if true, creates initial values.")
     if current_local_context == None:
         netbox_vm.local_context_data = {"proxmox": proxmox_values}
+        print("[DEBUG] SAVING LOCAL CONTEXT.")
         netbox_vm.save()
         return True
 
