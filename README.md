@@ -53,6 +53,7 @@ The following table shows the Netbox and Proxmox versions compatible (tested) wi
 - [1.4. Run Database Migrations](#14-run-database-migrations)
 - [1.5 Restart WSGI Service](#15-restart-wsgi-service)
 - [1.6. Queue Initialization](#16-queue-initialization)
+- [1.7. Service](#17-service)
 
 [2. Configuration Parameters](#2-configuration-parameters)
 
@@ -225,6 +226,46 @@ To make it work as a background process we recommend to use screen
 To detach the screen just press ``ctrl+a+d``
 
  
+
+---
+
+### 1.7. Service
+
+#### Service
+A service can be set so the project queues don't relay on setting a screen:
+- Create a file call `proxbox.service`
+ ```shell
+$ touch /etc/systemd/system/proxbox.service
+``` 
+- Set the service coping into `proxbox.service` (here we are assuming that the virtual environment for netbox is installed at `/opt/netbox/venv`):
+```shell
+[Unit]
+Description=Proxbox service
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/netbox/
+VIRTUAL_ENV=/opt/netbox/venv
+Environment=PATH=$VIRTUAL_ENV/bin:$PATH
+ExecStart=/opt/netbox/plugins/netbox-proxbox/rq.sh &
+Restart=on-failure
+[Install]
+WantedBy=multi-user.target
+```
+- Enable the service:
+```shell
+ $ systemctl enable proxbox
+```
+- Start the service:
+```shell
+$ systemctl start proxbox
+```
+- Monitor the service:
+```shell
+$ journalctl -u proxbox -f
+```
+#### Todo
+Set the correct `stdout` execution logs.
 
 ---
 
