@@ -16,7 +16,7 @@ github = 'https://github.com/edgeuno/netbox-proxbox'
 
 # Proxbox dependencies
 requires = [
-    'poetry',
+    # 'poetry',
     'invoke',
     'numpy',
     'matplotlib',
