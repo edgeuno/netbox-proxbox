@@ -755,7 +755,7 @@ def base_add_configuration(proxmox, netbox_vm, proxmox_vm):
             netbox_vm = set_tenant(netbox_vm, config['description'])
             netbox_vm = set_contact_to_vm(config['description'], netbox_vm)
         # else:
-            # print('no description')
+        # print('no description')
     except Exception as e:
         print("Error: base_add_configuration-3 - {}".format(e))
         print(e)

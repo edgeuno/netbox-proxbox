@@ -57,14 +57,14 @@ class ProxmoxVMFilter(django_filters.FilterSet):
         # queryset =  list of objects currently meeting filter criteria, before q filter is applied
         # name = name of the filter field
         # value = value entered into the filter field in web GUI
-        
+
         # returns unchanged query set if no value was provided
         if not value.strip():
             return queryset
 
         # if there is a value, use 'Q' Django object to build a query based on two fields
         qs_filter = Q(type__icontains=value) | Q(description__icontains=value)
-        
+
         # apply this filter to queryset and return the result.
         # if value is contained in either 'type'' or 'description',
         # for given object then the object will be included in final queryset

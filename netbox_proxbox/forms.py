@@ -6,6 +6,7 @@ from .models import ProxmoxVM
 
 from virtualization.models import VirtualMachine, Cluster
 
+
 # 'forms.ModelForm' is a Django helper class  that allows building forms from models
 # 'BootstrapMixin' comes from Netbox and adds CSS classes
 class ProxmoxVMForm(BootstrapMixin, forms.ModelForm):
@@ -23,7 +24,8 @@ class ProxmoxVMForm(BootstrapMixin, forms.ModelForm):
             "memory",
             "disk",
         ]
- 
+
+
 class ProxmoxVMFilterForm(BootstrapMixin, forms.ModelForm):
     """Form for filtering ProxmoxVM instances."""
 
@@ -32,7 +34,7 @@ class ProxmoxVMFilterForm(BootstrapMixin, forms.ModelForm):
     # Link it to Cluster object
     cluster = forms.ModelChoiceField(
         # drop-down with all Cluster objects available
-        queryset=Cluster.objects.all(), 
+        queryset=Cluster.objects.all(),
 
         # field is optional
         required=False,

@@ -43,7 +43,7 @@ def get_set_role(**kwargs):
         role = DeviceRole.objects.filter(id=role_id).first()
         # except Exception as e:
         #     print(e)
-            # pass
+        # pass
 
         if role == None:
             return "Role ID of Virtual Machine or Node invalid. Maybe the ID passed does not exist or it is not a integer!"
@@ -81,6 +81,3 @@ def get_set_role(**kwargs):
         return 'Role ID configured is invalid.'
 
     return role
-
-
-
