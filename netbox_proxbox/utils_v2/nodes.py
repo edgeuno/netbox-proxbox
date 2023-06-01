@@ -81,6 +81,7 @@ def create_node(proxmox, proxmox_node, proxmox_session=None):
             netbox_obj.tags.add(c_tag)
         return netbox_obj
 
+
 def status(netbox_node, proxmox_node):
     #
     # Compare STATUS
