@@ -1,6 +1,8 @@
 from ...others.db import namedtuplefetchall
 import asyncio
 from django.utils import timezone
+import pytz
+from datetime import datetime
 
 try:
     from django.db import connection, transaction
@@ -811,7 +813,10 @@ def delete_vm(vm, job_id):
                         '[{:%H:%M:%S}] Not deleting the vm: {} proxbox registry created ...'.format(
                             timezone.now(), vm.name))
                 else:
-                    print('[{:%H:%M:%S}] Not deleting the vm: {} configuration and registry not found ...'.format(
+                    proxbox_vm.latest_job = job_id
+                    proxbox_vm.latest_update = (datetime.now()).replace(microsecond=0, tzinfo=pytz.utc)
+                    proxbox_vm.save()
+                    print('[{:%H:%M:%S}] Not deleting the vm: {} configuration and registry found ...'.format(
                         timezone.now(), vm.name))
             else:
                 print(
