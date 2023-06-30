@@ -197,9 +197,10 @@ def node_full_update(netbox_node, proxmox_node):
     try:
         netbox_node = status(netbox_node, proxmox_node)
         netbox_node = update_cluster(netbox_node, proxmox_node)
-        netbox_node = interface_ip_assign(netbox_node, proxmox_node)
         netbox_node = update_role(netbox_node, proxmox_node)
         netbox_node = update_device_type(netbox_node)
+        netbox_node = interface_ip_assign(netbox_node, proxmox_node)
+
     except Exception as e:
         print("Error: node_full_update - {}".format(e))
         print(e)

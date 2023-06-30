@@ -763,9 +763,11 @@ def get_tags_name(vm):
 
 def full_vm_delete(vm, proxbox_vm):
     try:
+        print('[{:%H:%M:%S}] Executing full Delete for: {}...'.format(timezone.now(), vm.name))
         from .nb_proxbox import delete_proxbox_vm_sql
         if proxbox_vm:
             try:
+                print('[{:%H:%M:%S}] The latest job was: {}...'.format(timezone.now(), proxbox_vm.latest_job))
                 proxbox_vm.virtual_machine_id = None
                 proxbox_vm.cluster_id = None
                 proxbox_vm.device_id = None
