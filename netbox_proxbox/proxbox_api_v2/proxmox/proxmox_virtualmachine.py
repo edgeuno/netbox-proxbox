@@ -112,7 +112,7 @@ class ProxmoxVirtualMachine:
             vm_value = ProxmoxVirtualMachine.instance_from_object(vm, cluster, node)
             # await vm_value.async_add_vm_to_netbox()
             runner.append(vm_value.async_add_vm_to_netbox())
-            if len(runner) > 19:
+            if len(runner) > 9:
                 r1 = await asyncio.gather(*runner, return_exceptions=True)
                 vm_totals = vm_totals + r1
                 runner = []
