@@ -683,7 +683,6 @@ def upsert_netbox_vm(proxmox_vm, config=None):
         netbox_vm.tags.add(c_tag)
         netbox_vm = base_tag(netbox_vm)
 
-
         # Update tenat base on the configuration of the vm
         netbox_vm = base_add_configuration(netbox_vm, proxmox_vm, config)
         # Update the role of the vm
@@ -809,10 +808,11 @@ def delete_vm(vm, job_id):
                     cluster = ProxmoxCluster.instance_cluster(domain).nb_cluster
                     proxbox_vm = upsert_proxbox_from_vm(vm, domain, node, vmid, job_id, cluster, type, config)
                     print(
-                        '[{:%H:%M:%S}] Not deleting the vm: {} no deleting configuration and registry not found ...'.format(
+                        '[{:%H:%M:%S}] Not deleting the vm: {} proxbox registry created ...'.format(
                             timezone.now(), vm.name))
                 else:
-                    print('[{:%H:%M:%S}] Not deleting the vm: {} no deleting configuration and registry not found ...'.format(timezone.now(), vm.name))
+                    print('[{:%H:%M:%S}] Not deleting the vm: {} configuration and registry not found ...'.format(
+                        timezone.now(), vm.name))
             else:
                 print(
                     '[{:%H:%M:%S}] Not tag found for the vm: {} ...'.format(
