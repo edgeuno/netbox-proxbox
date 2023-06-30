@@ -763,7 +763,6 @@ def get_tags_name(vm):
 
 def full_vm_delete(vm, proxbox_vm):
     try:
-        print('[{:%H:%M:%S}] Executing full Delete for: {}...'.format(timezone.now(), vm.name))
         from .nb_proxbox import delete_proxbox_vm_sql
         if proxbox_vm:
             try:
@@ -803,11 +802,21 @@ def delete_vm(vm, job_id):
             tags_name, tg = get_tags_name(vm)
             if tg.name in tags_name:
                 if config is None:
+                    print('[{:%H:%M:%S}] Executing full Delete for: {}...'.format(timezone.now(), vm.name))
                     full_vm_delete(vm, proxbox_vm)
                 elif proxbox_vm is None:
                     from ..proxmox.proxmox_cluster import ProxmoxCluster
                     cluster = ProxmoxCluster.instance_cluster(domain).nb_cluster
                     proxbox_vm = upsert_proxbox_from_vm(vm, domain, node, vmid, job_id, cluster, type, config)
+                    print(
+                        '[{:%H:%M:%S}] Not deleting the vm: {} no deleting configuration and registry not found ...'.format(
+                            timezone.now(), vm.name))
+                else:
+                    print('[{:%H:%M:%S}] Not deleting the vm: {} no deleting configuration and registry not found ...'.format(timezone.now(), vm.name))
+            else:
+                print(
+                    '[{:%H:%M:%S}] Not tag found for the vm: {} ...'.format(
+                        timezone.now(), vm.name))
     except Exception as e:
         print(f'[ERROR] Deleting vm')
         print(e)

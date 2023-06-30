@@ -160,7 +160,9 @@ def upsert_proxbox_from_vm(vm, domain, node, vmid, job_id, cluster, type, config
             name=vm.name,
             proxmox_vm_id=vmid,
             type=type,
-            domain=domain
+            domain=domain,
+            latest_job=job_id,
+            latest_update=(datetime.now()).replace(microsecond=0, tzinfo=pytz.utc)
         )
         proxbox_vm.save()
     if proxbox_vm:
