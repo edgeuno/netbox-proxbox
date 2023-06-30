@@ -53,7 +53,9 @@ def upsert_proxbox_item(proxmox_vm) -> ProxmoxVM:
             name=proxmox_vm.name,
             proxmox_vm_id=vmid,
             type=vm_type,
-            domain=domain
+            domain=domain,
+            latest_job=proxmox_vm.cluster.job_id,
+            latest_update=(datetime.now()).replace(microsecond=0, tzinfo=pytz.utc)
         )
         proxbox_vm.save()
     if proxbox_vm:
@@ -70,6 +72,8 @@ def upsert_proxbox_item(proxmox_vm) -> ProxmoxVM:
         proxbox_vm.disk = disk_Gb
         proxbox_vm.proxmox_vm_id = vmid
         proxbox_vm.domain = domain
+
+        proxbox_vm.save()
 
         netbox_vm = upsert_netbox_vm(proxmox_vm, config)
         proxbox_vm.virtual_machine_id = netbox_vm.id
@@ -156,7 +160,7 @@ def upsert_proxbox_from_vm(vm, domain, node, vmid, job_id, cluster, type, config
             name=vm.name,
             proxmox_vm_id=vmid,
             type=type,
-            domain= domain
+            domain=domain
         )
         proxbox_vm.save()
     if proxbox_vm:

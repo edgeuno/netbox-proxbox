@@ -358,15 +358,12 @@ def set_contact_to_vm(test_str, netbox_vm):
 
 
 def base_add_configuration(netbox_vm, proxmox_vm, config=None):
-    vm_type = proxmox_vm.type
-    vmid = proxmox_vm.vmid
-    node = proxmox_vm.node
     try:
         if NETBOX_TENANT_NAME is not None:
             netbox_vm = default_tenant(netbox_vm)
-    except Exception as e:
-        print("Error: base_add_configuration-1 - {}".format(e))
-        print(e)
+    except Exception as e1:
+        print("Error: base_add_configuration-1 - {}".format(e1))
+        print(e1)
 
     if config is None:
         return netbox_vm
@@ -375,13 +372,14 @@ def base_add_configuration(netbox_vm, proxmox_vm, config=None):
         if 'description' in config:
             if config['description']:
                 netbox_vm.comments = config['description']
+                netbox_vm.save()
             netbox_vm = set_tenant(netbox_vm, config['description'])
             netbox_vm = set_contact_to_vm(config['description'], netbox_vm)
         # else:
         # print('no description')
-    except Exception as e:
-        print("Error: base_add_configuration-3 - {}".format(e))
-        print(e)
+    except Exception as e2:
+        print("Error: base_add_configuration-3 - {}".format(e2))
+        print(e2)
     return netbox_vm
 
 
@@ -676,14 +674,16 @@ def upsert_netbox_vm(proxmox_vm, config=None):
         netbox_vm.custom_field_data["proxmox_id"] = proxmox_vm.vmid
         netbox_vm.custom_field_data["proxmox_node"] = proxmox_vm.node
         netbox_vm.custom_field_data["proxmox_type"] = proxmox_vm.type
+        # Set the local context data
+        netbox_vm = base_local_context_data(netbox_vm, proxmox_vm)
+        # Update all the machine resources if necesary
+        netbox_vm = base_resources(netbox_vm, proxmox_vm)
         # Add the tags
         c_tag = tag()
         netbox_vm.tags.add(c_tag)
         netbox_vm = base_tag(netbox_vm)
-        # Update all the machine resources if necesary
-        netbox_vm = base_resources(netbox_vm, proxmox_vm)
-        # Set the local context data
-        netbox_vm = base_local_context_data(netbox_vm, proxmox_vm)
+
+
         # Update tenat base on the configuration of the vm
         netbox_vm = base_add_configuration(netbox_vm, proxmox_vm, config)
         # Update the role of the vm
