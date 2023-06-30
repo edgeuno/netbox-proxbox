@@ -816,8 +816,8 @@ def delete_vm(vm, job_id):
                     proxbox_vm.latest_job = job_id
                     proxbox_vm.latest_update = (datetime.now()).replace(microsecond=0, tzinfo=pytz.utc)
                     proxbox_vm.save()
-                    print('[{:%H:%M:%S}] Not deleting the vm: {} configuration and registry found ...'.format(
-                        timezone.now(), vm.name))
+                    print('[{:%H:%M:%S}] Not deleting the vm: {} configuration and registry found with config {} ...'.format(
+                        timezone.now(), vm.name,config ))
             else:
                 print(
                     '[{:%H:%M:%S}] Not tag found for the vm: {} ...'.format(
