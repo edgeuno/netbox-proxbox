@@ -1,32 +1,7 @@
-from django.template.defaultfilters import slugify
-
 # PLUGIN_CONFIG variables
 from ..plugins_config import (
     NETBOX_SESSION as nb,
 )
-
-
-def custom_tag(tag_name, tag_slug, tag_description="No description"):
-    # Check if Proxbox tag already exists.
-    proxbox_tag = nb.extras.tags.get(slug=tag_slug)
-
-    if proxbox_tag == None:
-        try:
-            # If Proxbox tag does not exist, create one.
-            tag = nb.extras.tags.create(
-                name=tag_name,
-                slug=tag_slug,
-                color='ff5722',
-                description=tag_description
-            )
-        except:
-            return "Error creating the '{0}' tag. Possible errors: the name '{0}' or slug '{1}' is already used.".format(
-                tag_name, tag_slug)
-    else:
-        tag = proxbox_tag
-
-    return tag
-
 
 #
 # extras.tags
@@ -34,8 +9,31 @@ def custom_tag(tag_name, tag_slug, tag_description="No description"):
 def tag():
     proxbox_tag_name = 'Proxbox'
     proxbox_tag_slug = 'proxbox'
-    description = "Proxbox Identifier (used to identify the items the plugin created)"
-    return custom_tag(proxbox_tag_name, proxbox_tag_slug, description)
+
+    # Check if Proxbox tag already exists.
+    proxbox_tag = nb.extras.tags.get(
+        name = proxbox_tag_name,
+        slug = proxbox_tag_slug
+    )
+
+    if proxbox_tag == None:
+        try:
+            # If Proxbox tag does not exist, create one.
+            tag = nb.extras.tags.create(
+                name = proxbox_tag_name,
+                slug = proxbox_tag_slug,
+                color = 'ff5722',
+                description = "Proxbox Identifier (used to identify the items the plugin created)"
+            )
+        except:
+            return f"Error creating the '{proxbox_tag_name}' tag. Possible errors: the name '{proxbox_tag_name}' or slug '{proxbox_tag_slug}' is already used."
+    else:
+        tag = proxbox_tag
+
+    return tag
+
+
+
 
 
 #
@@ -45,29 +43,14 @@ def tag():
 def role(**kwargs):
     # If role_id equals to 0, consider it is not configured by user and must be created by Proxbox
     role_id = kwargs.get("role_id", 0)
-    role_name = kwargs.get('role_name', None)
-    if role_name:
-        role = nb.dcim.device_roles.get(name=role_name)
-        if role is None:
-            try:
-                role = nb.dcim.device_roles.create(
-                    name=role_name,
-                    slug=slugify(role_name),
-                    color='ff5722',
-                    vm_role=True
-                )
-            except:
-                role = None
-        if role:
-            return role
 
     if not isinstance(role_id, int):
         return 'Role ID must be INTEGER. Netbox PLUGINS_CONFIG is configured incorrectly.'
 
     # If user configured ROLE_ID in Netbox's PLUGINS_CONFIG, use it.
     if role_id > 0:
-        role = nb.dcim.device_roles.get(id=role_id)
-
+        role = nb.dcim.device_roles.get(id = role_id)
+        
         if role == None:
             return "Role ID of Virtual Machine or Node invalid. Maybe the ID passed does not exist or it is not a integer!"
 
@@ -77,8 +60,8 @@ def role(**kwargs):
 
         # Verify if basic role is already created
         role_proxbox = nb.dcim.device_roles.get(
-            name=role_proxbox_name,
-            slug=role_proxbox_slug
+            name = role_proxbox_name,
+            slug = role_proxbox_slug
         )
 
         # Create a basic Proxbox VM/Node Role if not created yet.
@@ -86,15 +69,14 @@ def role(**kwargs):
 
             try:
                 role = nb.dcim.device_roles.create(
-                    name=role_proxbox_name,
-                    slug=role_proxbox_slug,
-                    color='ff5722',
-                    vm_role=True
+                    name = role_proxbox_name,
+                    slug = role_proxbox_slug,
+                    color = 'ff5722',
+                    vm_role = True
                 )
             except:
-                return "Error creating the '{0}' role. Possible errors: the name '{0}' or slug '{1}' is already used.".format(
-                    role_proxbox_name, role_proxbox_slug)
-
+                return f"Error creating the '{role_proxbox_name}' role. Possible errors: the name '{role_proxbox_name}' or slug '{role_proxbox_slug}' is already used."
+        
         # If basic role already created, use it.
         else:
             role = role_proxbox

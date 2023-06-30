@@ -15,6 +15,60 @@ from .forms import ProxmoxVMForm, ProxmoxVMFilterForm
 from .models import ProxmoxVM
 from .tables import ProxmoxVMTable
 
+import json
+
+from netbox import configuration
+
+from netbox_proxbox import proxbox_api
+
+from . import ProxboxConfig
+
+
+class HomeView(View):
+    """Homepage"""
+    template_name = 'netbox_proxbox/home.html'
+
+    # service incoming GET HTTP requests
+    def get(self, request):
+        """Get request."""
+
+        plugin_configuration = configuration.PLUGINS_CONFIG
+        default_config = ProxboxConfig.default_settings
+
+        return render(
+            request,
+            self.template_name,
+            {
+                "configuration": plugin_configuration,
+                "default_config": default_config,
+                "configuration_json": json.dumps(plugin_configuration, indent=4),
+                "default_config_json": json.dumps(default_config, indent=4)
+            }
+        )
+
+
+class ProxmoxFullUpdate(PermissionRequiredMixin, View):
+    """Full Update of Proxmox information on Netbox."""
+
+    # Define permission
+    permission_required = "netbox_proxbox.view_proxmoxvm"
+
+    # service incoming GET HTTP requests
+    # 'pk' value is passed to get() via URL defined in urls.py
+    def get(self, request):
+        """Get request."""
+
+        json_result = proxbox_api.update.all(remove_unused=True)
+
+        return render(
+            request,
+            "netbox_proxbox/proxmox_vm_full_update.html",
+            {
+                "proxmox": json_result,
+                "proxmox_json": json.dumps(json_result, indent=4)
+            },
+        )
+
 
 class ProxmoxVMView(PermissionRequiredMixin, View):
     """Display Virtual Machine details"""
@@ -72,13 +126,15 @@ class ProxmoxVMListView(PermissionRequiredMixin, View):
 
         # RequestConfig is used to configure pagination of 25 object per page
         RequestConfig(request, paginate={"per_page": 25}).configure(table)
-
+        filter_form = self.filterset_form(request.GET)
+        print("test")
         return render(
             request, "netbox_proxbox/proxmox_vm_list.html",
             {
                 "table": table,
-                "filter_form": self.filterset_form(request.GET),
+                "filter_form": filter_form,
                 "icon_classes": icon_classes,
+                "model": table.Meta.model
             }
         )
 
