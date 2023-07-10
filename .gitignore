@@ -136,3 +136,4 @@ dmypy.json
 # other stuff
 .vscode
 /configuration_options.json
+/proxbox_runner.txt

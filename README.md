@@ -25,9 +25,9 @@ django
 queues in order to have a recurring synchronization with all the machines in proxbox.
 Better synchronization with remove machines in proxmox.
 
-> **ALERT:** Braking change has being made with version `0.0.10`.
+> **ALERT:** Braking changes has being made with version `0.0.10`.
 > 
-> - Django's queues are no longer in use, the model was change so a script is used to run the synchronization tool
+> - Django's queues are no longer in use, the model was change to a script is used to run the synchronization tool
 > - The configuration for the cluster is now set in a file for reduce complexity of the file `configuration.py`
 > - Some of the code from the of official proxbox has being merge with this repository.
 
@@ -75,7 +75,7 @@ The following table shows the Netbox and Proxmox versions compatible (tested) wi
 ### Summary
 [1. Installation](#1-installation)
 - [1.1. Install package](#11-install-package)
-  - [1.1.1. Using pip (production use)](#111-using-pip-production-use---not-working-yet)
+  - ~~[1.1.1. Using pip (production use)](#111-using-pip-production-use---not-working-yet)~~
   - [1.1.2. Using git (development use)](#112-using-git-development-use)
 - [1.2. Enable the Plugin](#12-enable-the-plugin)
 - [1.3. Configure Plugin](#13-configure-plugin)
@@ -83,6 +83,7 @@ The following table shows the Netbox and Proxmox versions compatible (tested) wi
   - [1.3.2. Change Netbox 'settings.py' to include Proxbox Template directory](#132-change-netbox-settingspy-to-include-proxbox-template-directory)
 - [1.4. Run Database Migrations](#14-run-database-migrations)
 - [1.5 Restart WSGI Service](#15-restart-wsgi-service)
+- [1.6 Running the script](#16-running-the-script)
 - ~~[1.6. Queue Initialization](#16-queue-initialization)~~
 - ~~[1.7. Service](#17-service)~~
 
@@ -111,24 +112,26 @@ The following table shows the Netbox and Proxmox versions compatible (tested) wi
 ## 1. Installation
 
 The instructions below detail the process for installing and enabling Proxbox plugin.
-The plugin is available as a Python package in pypi and can be installed with pip.
+~~The plugin is available as a Python package in pypi and can be installed with pip.~~
 
-### 1.1. Install package
+### ~~1.1. Install package~~
 
-#### 1.1.1. Using pip (production use)
+#### ~~1.1.1. Using pip (production use)~~
 
-Enter Netbox's virtual environment.
+~~Enter Netbox's virtual environment.~~
 ```
 source /opt/netbox/venv/bin/activate
 ```
 
-Install the plugin package.
+~~Install the plugin package.~~
 ```
 (venv) $ pip install netbox-proxbox
 ```
 
+For the moment installation via package is not supported maybe in the future
+
 #### 1.1.2. Using git (development use)
-**OBS:** This method is recommend for testing and development purposes and is not for production use.
+**OBS:** This method is recommended for testing and development purposes and is not for production use.
 
 Move to netbox main folder
 ```
@@ -140,11 +143,19 @@ Clone netbox-proxbox repository
 git clone https://github.com/netdevopsbr/netbox-proxbox.git
 ```
 
-Install netbox-proxbox
+
 ```
 cd netbox-proxbox
 source /opt/netbox/venv/bin/activate
+```
+Install netbox-proxbox for development
+```
 python3 setup.py develop
+```
+
+Install netbox-proxbox for production
+```
+python3 setup.py install
 ```
 
 ---
@@ -163,7 +174,7 @@ PLUGINS = ['netbox_proxbox']
 #### 1.3.1. Change Netbox '**[configuration.py](https://github.com/netbox-community/netbox/blob/develop/netbox/netbox/configuration.example.py)**' to add PLUGIN parameters
 The plugin's configuration is also located in **/opt/netbox/netbox/netbox/configuration.py**:
 
-Replace the values with your own following the [Configuration Parameters](#2-configuration-parameters) section.
+The values for the file configuration_options can be found in the section [Configuration Parameters](#2-configuration-parameters) section.
 
 **OBS:** You do not need to configure all the parameters, only the one's different from the default values. It means that if you have some value equal to the one below, you can skip its configuration. For netbox you should ensure the domain/port either targets gunicorn or a true http port that is not redirected to https.
 
@@ -171,28 +182,10 @@ Replace the values with your own following the [Configuration Parameters](#2-con
 PLUGINS_CONFIG = {
     'netbox_proxbox': {
         'proxmox': {
-            'domain': 'proxbox.example.com',    # May also be IP address
-            'http_port': 8006,
-            'user': 'root@pam',   # always required
-            'password': 'Strong@P4ssword', # only required, if you don't want to use token based authentication
-            'token': {
-                'name': 'tokenID',	# Only type the token name and not the 'user@pam:tokenID' format
-                'value': '039az154-23b2-4be0-8d20-b66abc8c4686'
-            },
-            'ssl': False
+            'filePath': '/opt/netbox/plugins/netbox-proxbox/configuration_options.json',
         },
-        'netbox': {
-            'domain': 'localhost',     # Ensure localhost is added to ALLOWED_HOSTS
-            'http_port': 8001,     # Gunicorn port.
-            'token': '0dd7cddfaee3b38bbffbd2937d44c4a03f9c9d38',
-            'ssl': False,	# There is no support to SSL on Netbox yet, so let it always False.
-            'settings': {
-                'virtualmachine_role_id' : 0,
-                'node_role_id' : 0,
-                'site_id': 0
-            }
-        }
     }
+}
 ```
 
 <br>
@@ -222,6 +215,24 @@ Restart the WSGI service to load the new plugin:
 ```
 
 ### 1.6 Running the script
+
+After installing the plugin to run the process just run
+```shell
+$ /opt/netbox/venv/bin/python /opt/netbox/netbox/manage.py proxboxscrapper
+```
+
+#### Set the cron job
+There is a file called `proxbox_runner.sh` which can be used for running the cron job.
+
+To enable run
+```shell
+crontab -e
+```
+and copy the following line to run the script every hour and to set the output to a file for later review
+```
+## Proxbox runner
+0 * * * * /usr/bin/bash -l /opt/netbox/plugins/netbox-proxbox/proxbox_runner.sh > /opt/netbox/plugins/netbox-proxbox/proxbox_runner.txt
+```
 
 ### ~~1.6. Queue Initialization~~
 
@@ -306,27 +317,25 @@ $ journalctl -u proxbox -f
 
 The following options are available:
 
-* `proxmox`: (Dict) Proxmox related configuration to use proxmoxer.
+* `proxmox`: (List<Dict>) Proxmox related configuration to access the cluster.
 * `proxmox.domain`: (String) Domain or IP address of Proxmox.
 * `proxmox.http_port`: (Integer) Proxmox HTTP port (default: 8006).
 * `proxmox.user`: (String) Proxmox Username.
-* `proxmox.password`: (String) Proxmox Password.
-* `proxmox.token`: (Dict) Contains Proxmox TokenID (name) and Token Value (value).
-* `proxmox.token.name`: (String) Proxmox TokenID.
-* `proxmox.token.value`: (String) Proxmox Token Value.
+* `proxmox.token_name`: (String) Proxmox TokenID.
+* `proxmox.token_value`: (String) Proxmox Token Value.
 * `proxmox.ssl`: (Bool) Defines the use of SSL (default: False).
+* `proxmox.site_name`: (String) Name of the site where the cluster is located.
+* `proxmox.node_role_name`: (String) Name of the role in netbox for the nodes of the cluster, if not in netbox it will be created.
 
 * `netbox`: (Dict) Netbox related configuration to use pynetbox.
-* `netbox.domain`: (String) Domain or IP address of Netbox. Ensure name or ip is added to `ALLOWED_HOSTS`
-* `netbox.http_port`: (Integer) Netbox HTTP PORT (default: 8001).  If you are not targeting gunicorn directly make sure the HTTP port is not redirected to HTTPS by your HTTP server.
-* `netbox.token`: (String) Netbox Token Value.
-* `netbox.ssl`: (Bool) Defines the use of SSL (default: False). - Proxbox doesn't support SSL on Netbox yet.
-* `netbox.settings`: (Dict) Default items of Netbox to be used by Proxbox. 
-  - If not configured, Proxbox will automatically create a basic configuration to make it work.
-  - The ID of each item can be easily found on the URL of the item you want to use.
+* `netbox.manufacturer`: (String) Default name for the manufacturer of the machine that contains the node
 * `netbox.settings.virtualmachine_role_id`: (Integer) Role ID to be used by Proxbox when creating Virtual Machines
+* `netbox.settings.virtualmachine_role_name`: (String) Default name of the role for the virtual machine in netbox
 * `netbox.settings.node_role_id`: (Integer) Role ID to be used by Proxbox when creating Nodes (Devices)
 * `netbox.settings.site_id` (Integer) Site ID to be used by Proxbox when creating Nodes (Devices)
+* `netbox.tenant_name`: (String) Default name for the tenant of the virtual machine
+* `netbox.tenant_regex_validator`: (String) If information about the tenant is set in the description of the virtual machine, give how to parse it so the default tenant is given. This helps when a lot of virtual machines belong to another tenants
+* `netbox.tenant_description`: (String) Description for the default tenant
 
 ---
 
@@ -347,7 +356,7 @@ Required values (must be equal)
 - [Assignment] **Content-type:** Virtualization > virtual machine
 - [Validation Rules] **Minimum value:** 0
 
-Optional values (may be different)
+Optional values (maybe different)
 - [Custom Field] **Label:** [Proxmox] ID
 - [Custom Field] **Description:** Proxmox VM/CT ID
 
@@ -360,7 +369,7 @@ Required values (must be equal)
 - [Custom Field] **Name:** proxmox_node
 - [Assignment] **Content-type:** Virtualization > virtual machine
 
-Optional values (may be different)
+Optional values (maybe different)
 - [Custom Field] **Label:** [Proxmox] Node
 - [Custom Field] **Description:** Proxmox Node (Server)
 
@@ -374,7 +383,7 @@ Required values (must be equal)
 - [Assignment] **Content-type:** Virtualization > virtual machine
 - [Choices] **Choices:** qemu,lxc
 
-Optional values (may be different)
+Optional values (maybe different)
 - [Custom Field] **Label:** [Proxmox] Type
 - [Custom Field] **Description:** Proxmox type (VM or CT)
 
