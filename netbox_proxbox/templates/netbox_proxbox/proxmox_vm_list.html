@@ -1,88 +1,125 @@
-{#{% extends 'base.html' %}#}
 {% extends 'base/layout.html' %}
+{% load helpers %}
 {% load render_table from django_tables2 %}
+{% load plugin_helpers %}
+
+{% block title %}
+    All Proxmox Virtual Machines
+
+{% endblock %}
+
+{% block subtitle %}
+    <h5> (in Development, Wait!) </h5>
+{% endblock subtitle %}
+
+{% block tabs %}
+
+    <ul class="nav nav-tabs px-3">
+
+        {% block tab_items %}
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="object-list-tab" data-bs-toggle="tab" data-bs-target="#object-list"
+                        type="button" role="tab" aria-controls="edit-form" aria-selected="true">
+                    Records
+                    {% badge table.page.paginator.count %}
+                </button>
+            </li>
+            {% if filter_form %}
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="filters-form-tab" data-bs-toggle="tab" data-bs-target="#filters-form"
+                            type="button" role="tab" aria-controls="object-list" aria-selected="false">
+                        Filters
+                        {% if filter_form %}{% badge filter_form.changed_data|length %}{% endif %}
+                    </button>
+                </li>
+            {% endif %}
+        {% endblock tab_items %}
+    </ul>
+{% endblock tabs %}
 
 {% block content %}
-<!--
-<div class="pull-right noprint">
-    {% if perms.netbox_proxbox.add_proxmoxvm %}
-    <a href="{% url 'plugins:netbox_proxbox:proxmoxvm_add' %}" class="btn btn-primary">
-        <span class="{{ icon_classes.plus }}" aria-hidden="true"></span> Add
+
+    <a href="{% url 'virtualization:virtualmachine_list' %}">
+        {{ virtualmachine.name }}
     </a>
-    {% endif %}
-</div>
- -->
 
- <!--
- <div class="pull-right noprint">
-    {% if perms.netbox_proxbox.add_proxmoxvm %}
-    <a href="{% url 'plugins:netbox_proxbox:proxmoxvm_full_update' %}" class="btn btn-primary">
-        <span class="{{ icon_classes.plus }}" aria-hidden="true"></span> Proxmox Full Update
-    </a>
-    {% endif %}
-</div>
--->
+    {#    <div class="pull-right noprint">#}
+    {#        {% if perms.netbox_proxbox.add_proxmoxvm %}#}
+    {#        <a href="{% url 'plugins:netbox_proxbox:proxmoxvm_full_update' %}" target="_blank" class="btn btn-primary">Proxmox Full Update</a>#}
+    {#        {% endif %}#}
+    {#    </div>#}
 
-<div class="pull-right noprint">
-    {% if perms.netbox_proxbox.add_proxmoxvm %}
-    <a href="{% url 'plugins:netbox_proxbox:proxmoxvm_full_update' %}" target="_blank" class="btn btn-primary">Proxmox Full Update</a>
-    {% endif %}
-</div>
+    <div class="tab-content">
+        <div class="tab-pane show active" id="object-list" role="tabpanel" aria-labelledby="object-list-tab">
+            <div class="row">
+                 {% applied_filters model filter_form request.GET %}
+                <div class="col-md-12">
 
-<h1>{% block title %}All Proxmox Virtual Machines (in Development, Wait!){% endblock %}</h1>
-<div class="row">
-    <div class="col-md-9">
-        <!-- 'render_table' is a template tag that comes from django_tables2 and renders HTML tables among other things-->
-        {% render_table table %}
-    </div>
-    <!-- search panel div start -->
-    <div class="col-md-3 noprint">
-        <div class="panel panel-default">
-            <div class="panel-heading">
-                <span class="{{ icon_classes.search }}" aria-hidden="true"></span>
-                <strong>Search</strong>
-            </div>
-            <div class="panel-body">
-                <form action="." method="get" class="form">
-                    <!-- Form fields are rendered in 'for' loop-->
-                    {% for field in filter_form.visible_fields %}
-                    <div class="form-group">
-                        <!-- 
-                            Only 'q' field receives special treatment, as it does not belong to any underlying model. 
-                            We make it a text input field with label as a placeholder
-                        -->
-                        {% if field.name == "q" %}
-                        <div class="input-group">
-                            <!-- 
-                                Value of the field is carried over from previous search.
-                                It's usually done by auto-generated form fields, but in this case we have do it manually with the expression below
-                            -->
-                            <input type="text" name="q" class="form-control" placeholder="{{ field.label }}"
-                                {% if request.GET.q %}value="{{ request.GET.q }}" {% endif %} />
-                            <span class="input-group-btn">
-                                <button type="submit" class="btn btn-primary">
-                                    <span class="{{ icon_classes.search }}" aria-hidden="true"></span>
-                                </button>
-                            </span>
-                        </div>
-                        <!-- fields are rendered with defaults settings-->
-                        {% else %}
-                        {{ field.label_tag }}
-                        {{ field }}
-                        {% endif %}
-                    </div>
-                    {% endfor %}
-                    <div class="text-right noprint">
-                        <button type="submit" class="btn btn-primary">
-                            <span class="{{ icon_classes.search }}" aria-hidden="true"></span> Apply
-                        </button>
-                        <a href="." class="btn btn-default">
-                            <span class="{{ icon_classes.remove }}" aria-hidden="true"></span> Clear
-                        </a>
-                    </div>
-                </form>
+                    <!-- 'render_table' is a template tag that comes from django_tables2 and renders HTML tables among other things-->
+                    {% render_table table 'inc/table.html' %}
+                    {% include 'netbox_proxbox/paginator.html' with table=table %}
+                </div>
             </div>
         </div>
+        <!-- search panel div start -->
+        <div class="tab-pane show" id="filters-form" role="tabpanel" aria-labelledby="filters-form-tab">
+            {% include 'inc/filter_list.html' %}
+        </div>
     </div>
-</div>
+{#    <!-- search panel div start -->#}
+{#        <div class="col-md-3 noprint">#}
+{#            <div class="panel panel-default">#}
+{#                <div class="panel-heading">#}
+{#                    <span class="{{ icon_classes.search }}" aria-hidden="true"></span>#}
+{#                    <strong>Search</strong>#}
+{#                </div>#}
+{#                <div class="panel-body">#}
+{#                    <form action="." method="get" class="form">#}
+{#                        <!-- Form fields are rendered in 'for' loop-->#}
+{#                        {% for field in filter_form.visible_fields %}#}
+{#                        <div class="form-group">#}
+{#                            <!--#}
+{#                                Only 'q' field receives special treatment, as it does not belong to any underlying model.#}
+{#                                We make it a text input field with label as a placeholder#}
+{#                            -->#}
+{#                            {% if field.name == "q" %}#}
+{#                            <div class="input-group">#}
+{#                                <!--#}
+{#                                    Value of the field is carried over from previous search.#}
+{#                                    It's usually done by auto-generated form fields, but in this case we have do it manually with the expression below#}
+{#                                -->#}
+{#                                <input type="text" name="q" class="form-control" placeholder="{{ field.label }}"#}
+{#                                    {% if request.GET.q %}value="{{ request.GET.q }}" {% endif %} />#}
+{#                                <span class="input-group-btn">#}
+{#                                    <button type="submit" class="btn btn-primary">#}
+{#                                        <span class="{{ icon_classes.search }}" aria-hidden="true"></span>#}
+{#                                    </button>#}
+{#                                </span>#}
+{#                            </div>#}
+{#                            <!-- fields are rendered with defaults settings-->#}
+{#                            {% else %}#}
+{#                            {{ field.label_tag }}#}
+{#                            {{ field }}#}
+{#                            {% endif %}#}
+{#                        </div>#}
+{#                        {% endfor %}#}
+{#                        <div class="text-right noprint">#}
+{#                            <button type="submit" class="btn btn-primary">#}
+{#                                <span class="{{ icon_classes.search }}" aria-hidden="true"></span> Apply#}
+{#                            </button>#}
+{#                            <a href="." class="btn btn-default">#}
+{#                                <span class="{{ icon_classes.remove }}" aria-hidden="true"></span> Clear#}
+{#                            </a>#}
+{#                        </div>#}
+{#                    </form>#}
+{#                </div>#}
+{#            </div>#}
+{#        </div>#}
+
+{% endblock %}
+
+{% block footer_links %}
+    {{ block.super }}
+
+    {% include "netbox_proxbox/footer.html" %}
 {% endblock %}

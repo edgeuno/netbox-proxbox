@@ -1,23 +1,17 @@
 # tables.py
-import django_tables2 as tables
+import django_tables2 as table
 
-try:
-    from utilities.tables import BaseTable
-except:
-    from netbox.tables import BaseTable
-
+from netbox.tables import NetBoxTable
 from .models import ProxmoxVM
 
+class ProxmoxVMTable(NetBoxTable):
+    """Table for displaying the synchronize objects"""
+    id = table.LinkColumn()
+    cluster = table.LinkColumn()
+    virtual_machine = table.LinkColumn()
+    proxmox_vm_id = table.LinkColumn()
 
-class ProxmoxVMTable(BaseTable):
-    """Table for displaying BGP Peering objects."""
-
-    id = tables.LinkColumn()
-    cluster = tables.LinkColumn()
-    virtual_machine = tables.LinkColumn()
-    proxmox_vm_id = tables.LinkColumn()
-
-    class Meta(BaseTable.Meta):
+    class Meta(NetBoxTable.Meta):
         model = ProxmoxVM
         fields = (
             "id",

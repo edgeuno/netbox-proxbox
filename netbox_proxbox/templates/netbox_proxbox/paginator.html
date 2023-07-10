@@ -1,0 +1,32 @@
+{% load helpers %}
+{% load plugin_helpers %}
+
+{% if table.paginator.num_pages > 1 %}
+    <div class="btn-group btn-group-sm mb-3" role="group" aria-label="Pages">
+        {% if table.page.has_previous %}
+            <a href="{% querystring request page=table.page.previous_page_number %}"
+               class="btn btn-outline-secondary">
+                <i class="mdi mdi-chevron-double-left"></i>
+            </a>
+        {% endif %}
+        {% get_proper_elided_page_range table  as page_range %}
+        {% for p in page_range %}
+            {% if p %}
+                <a href="{% querystring request page=p %}"
+                   class="btn btn-outline-secondary{% if table.page.number == p %} active{% endif %}">
+                    {{ p }}
+                </a>
+            {% else %}
+                <button type="button" class="btn btn-outline-secondary" disabled>
+                    <span>&hellip;</span>
+                </button>
+            {% endif %}
+        {% endfor %}
+        {% if table.page.has_next %}
+            <a href="{% querystring request page=table.page.next_page_number %}"
+               class="btn btn-outline-secondary">
+                <i class="mdi mdi-chevron-double-right"></i>
+            </a>
+        {% endif %}
+    </div>
+{% endif %}
