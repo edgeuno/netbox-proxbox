@@ -1,0 +1,24 @@
+{
+  "proxmox": [
+    {
+      "domain": "proxbox.example.com",
+      "http_port": 8006,
+      "user": "root@pam",
+      "token_name": "tokenID",
+      "token_value": "039az154-23b2-4be0-8d20-b66abc8c4686",
+      "ssl": false,
+      "site_name": "SITENAME",
+      "node_role_name": "Hypervisor"
+    }
+  ],
+  "netbox": {
+    "manufacturer": "Dell",
+    "virtualmachine_role_id": 0,
+    "virtualmachine_role_name": "Proxbox Basic Role",
+    "node_role_id": 0,
+    "site_id": 0,
+    "tenant_name": "EdgeUno",
+    "tenant_regex_validator": "^prefix-",
+    "tenant_description": "Nice Description for the tenant"
+  }
+}

@@ -7,7 +7,6 @@ from virtualization.api.nested_serializers import NestedClusterSerializer, Neste
 # model that will be built the serializer
 from netbox_proxbox.models import ProxmoxVM
 
-
 class ProxmoxVMSerializer(serializers.ModelSerializer):
     """Serializer for the ProxmoxVM model."""
 

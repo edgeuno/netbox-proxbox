@@ -3,14 +3,16 @@ import sys
 # PLUGIN_CONFIG variables
 from ..plugins_config import (
     NETBOX_SESSION as nb,
-    # PROXMOX_SESSION as proxmox,
-    NETBOX_VM_ROLE_ID
+    PROXMOX_SESSION as proxmox,
+    NETBOX_VM_ROLE_ID,
+
 )
 
 from . import (
     extras,
 )
 
+import logging
 
 #
 # virtualization.cluster_types
@@ -21,10 +23,10 @@ def cluster_type():
     #
     cluster_type_name = 'Proxmox'
     cluster_type_slug = 'proxmox'
-
+    
     cluster_type_proxbox = nb.virtualization.cluster_types.get(
-        name=cluster_type_name,
-        slug=cluster_type_slug
+        name = cluster_type_name,
+        slug = cluster_type_slug
     )
 
     # If no 'cluster_type' found, create one
@@ -32,23 +34,27 @@ def cluster_type():
 
         try:
             cluster_type = nb.virtualization.cluster_types.create(
-                name=cluster_type_name,
-                slug=cluster_type_slug,
-                description='Proxmox Virtual Environment. Open-source server management platform'
+                name = cluster_type_name,
+                slug = cluster_type_slug,
+                description = 'Proxmox Virtual Environment. Open-source server management platform'
             )
         except Exception as request_error:
-            raise RuntimeError("Error creating the '{0}' cluster type.".format(cluster_type_name)) from request_error
+            raise RuntimeError(f"Error creating the '{cluster_type_name}' cluster type.") from request_error
 
     else:
         cluster_type = cluster_type_proxbox
-
+    
     return cluster_type
 
 
-#
+
+
+
+
+# 
 # virtualization.clusters
 #
-def cluster(proxmox):
+def cluster():
     #
     # Cluster
     #
@@ -59,68 +65,117 @@ def cluster(proxmox):
     # Verify if there any cluster created with:
     # Name equal to Proxmox's Cluster name
     # Cluster type equal to 'proxmox'
-    cluster_proxbox = nb.virtualization.clusters.get(
-        name=proxmox_cluster_name,
-        type=cluster_type().slug
-    )
+    try:
+        cluster_proxbox = nb.virtualization.clusters.get(
+           name = proxmox_cluster_name,
+           type = cluster_type().slug
+        )
+    except ValueError as error:
+        logging.error(f"[ERROR] More than one cluster is created with the name '{proxmox_cluster_name}', making proxbox to abort update.\n   > {error}")
+        return
+    
+    nb_cluster_name = None
+    try:
+        if cluster_proxbox != None:
+            nb_cluster_name = cluster_proxbox.name
+    except Exception as error:
+        logging.error(f"[ERROR] {error}")
 
-    # If no 'cluster' found, create one using the name from Proxmox
-    if cluster_proxbox == None:
+    duplicate = False
+    try:
+        # Check if Proxbox tag exist.
+        if cluster_proxbox != None:
+            search_tag = cluster_proxbox.tags.index(extras.tag())
+    except ValueError as error:
+        logging.warning(f"[WARNING] Cluster with the same name as {nb_cluster_name} already exists.\n> Proxbox will create another one with (2) in the name\n{error}")
+        cluster_proxbox = False
+        duplicate = True
+
+    # If 'cluster' is found, check for duplicated and create another one, if necessary:
+    if cluster_proxbox != None:
+        # Check if it is duplicated:
+        if duplicate == True:
+            proxmox_cluster_name = f"{proxmox_cluster_name} (2)" 
+
+            # Check if duplicated device was already created.
+            try:
+                search_device = nb.virtualization.clusters.get(
+                    name = proxmox_cluster_name
+                )
+                
+                if search_device != None:
+                    return search_device
+                
+            except Exception as error:
+                logging.error(f"[ERROR] {error}")
+        else:
+            return cluster_proxbox
 
         try:
             # Create the cluster with only name and cluster_type
             cluster = nb.virtualization.clusters.create(
-                name=proxmox_cluster_name,
-                type=cluster_type().id,
-                tags=[extras.tag().id]
+                name = proxmox_cluster_name,
+                type = cluster_type().id,
+                tags = [extras.tag().id]
             )
+            return cluster
         except:
-            return "Error creating the '{0}' cluster. Possible errors: the name '{0}' is already used.".format(
-                proxmox_cluster_name)
-
+            return f"Error creating the '{proxmox_cluster_name}' cluster. Possible errors: the name '{proxmox_cluster_name}' is already used."
+    
+    # If no Cluster is found, create one.
     else:
-        cluster = cluster_proxbox
+        try:
+            # Create the cluster with only name and cluster_type
+            cluster = nb.virtualization.clusters.create(
+                name = proxmox_cluster_name,
+                type = cluster_type().id,
+                tags = [extras.tag().id]
+            )
+            return cluster
+        except:
+            return f"Error creating the '{proxmox_cluster_name}' cluster. Possible errors: the name '{proxmox_cluster_name}' is already used."
 
-    return cluster
+
+
+
+
+
+
+
 
 
 #
 # virtualization.virtual_machines
 #
-def get_virtual_machine_data(proxmox, proxmox_vm):
+def virtual_machine(proxmox_vm, duplicate):
     # Create json with basic VM/CT information
     vm_json = {}
+    netbox_obj = None
 
     if proxmox_vm['status'] == 'running':
         vm_json["status"] = 'active'
     elif proxmox_vm == 'stopped':
         vm_json["status"] = 'offline'
 
-    vm_json["name"] = proxmox_vm['name']
+    if duplicate:
+        logging.warning("[WARNING] VM/CT is duplicated")
+        vm_json["name"] = f"{proxmox_vm['name']} (2)"
+    else:
+        vm_json["name"] = proxmox_vm['name']
+    
     vm_json["status"] = 'active'
-    vm_json["cluster"] = cluster(proxmox).id
-    # vm_json["role"] = extras.role(role_id=NETBOX_VM_ROLE_ID).id
+    vm_json["cluster"] = cluster().id
+    vm_json["role"] = extras.role(role_id = NETBOX_VM_ROLE_ID).id
     vm_json["tags"] = [extras.tag().id]
-    return vm_json
-
-
-def virtual_machine(proxmox, proxmox_vm):
+    
     # Create VM/CT with json 'vm_json'
-    vm_json = get_virtual_machine_data(proxmox, proxmox_vm)
     try:
         netbox_obj = nb.virtualization.virtual_machines.create(vm_json)
-        print("VIRTUAL MACHINE CREATED")
-        print(netbox_obj)
-
-    except Exception as e:
-        print("Error: vm.proxbox.create.virtual_machine - {}".format(e))
-        print("[vm.proxbox.create.virtual_machine] Creation of VM/CT failed.")
-        print(e)
-        netbox_obj = None
-
-    else:
         return netbox_obj
 
-    # In case nothing works, returns error
-    netbox_obj = None
+    except:
+        logging.error("[proxbox.create.virtual_machine] Creation of VM/CT failed.")
+        netbox_obj = None
+
+    
     return netbox_obj

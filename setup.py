@@ -23,8 +23,7 @@ requires = [
     'requests>=2',
     'pynetbox>=5',
     'paramiko>=2',
-    'proxmoxer>=1',
-    "rq-scheduler",
+    'proxmoxer>=1'
 
 ]
 
@@ -38,7 +37,7 @@ dev_requires = [
 
 setup(
     name="netbox-proxbox",
-    version="0.0.9",
+    version="0.0.10",
     author="Javier Alejandro Ruiz",  # Original Autor Emerson Felipe
     author_email="javier.ruiz@edgeuno.com",  # Original Autor Email emerson.felipe@nmultifibra.com.br
     description="Integration between Proxmox and Netbox",
@@ -64,5 +63,5 @@ setup(
     extras_require={
         "dev": dev_requires,
     },
-    python_requires='>=3.6',
+    python_requires= '>=3.7',
 )
