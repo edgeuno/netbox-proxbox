@@ -2,7 +2,7 @@
   <img width="532" src="https://github.com/N-Multifibra/proxbox/blob/main/etc/img/proxbox-full-logo.png" alt="Proxbox logo">
 </p>
 
-# proxbox (In Development!)
+# proxbox 
 
 **Edgeuno:** These project is a fork of the original [proxbox](https://github.com/netdevopsbr/netbox-proxbox) plugin,
 the main changes are in the ability to set multi tenancy, improve information for the cluster, the devices (node), and
@@ -11,7 +11,10 @@ django
 queues in order to have a recurring synchronization with all the machines in proxbox.
 Better syncroniztion with remove machines in proxmox.
 
-**NOTE:** Although the Proxbox plugin is in development, it only use GET requests and there is no risk to harm your
+**Note:** **This branch was created for legacy purposes**. it will be no longer in develop, we change the way the scrapping from proxmox is done, 
+is no longer done in queues but instead is done with a script that can be set to be executed in a cron job or executed directly in the console.
+
+**NOTE:** Although the Proxbox plugin is in development, it only uses GET requests and there is no risk to harm your
 Proxmox environment by changing things incorrectly.
 
 Netbox plugin which integrates Proxmox and Netbox using proxmoxer and pynetbox.
