@@ -176,7 +176,7 @@ class VMPortScanner:
         for i in range(0, pages):
             try:
                 offset = i * limit
-                offset1 = ((i + 1) * limit) - 1
+                offset1 = ((i + 1) * limit)
                 print(f'{host}:{offset}-{offset1}')
                 ports_subset = ports[offset:offset1]
                 runner = []
