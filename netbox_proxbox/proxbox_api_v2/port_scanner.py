@@ -141,7 +141,7 @@ class VMPortScanner:
     async def process_ip(vm, ip):
         host = str(ip.address.ip)
         ports_range = range(1, 65535)
-        ports_open = await VMPortScanner.process_ports(host, ports_range, 50)
+        ports_open = await VMPortScanner.process_ports(host, ports_range, 100)
         services = []
         for i in ports_open:
             s = await asyncio.to_thread(VMPortScanner.set_service_to_vm, vm, ip, i)
