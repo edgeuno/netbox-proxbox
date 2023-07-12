@@ -141,7 +141,7 @@ class VMPortScanner:
     async def process_ip(vm, ip):
         host = str(ip.address.ip)
         ports_range = range(1, 65535)
-        ports_open = await VMPortScanner.process_ports(host, ports_range, 100)
+        ports_open = await VMPortScanner.process_ports(host, ports_range, 10)
         services = []
         for i in ports_open:
             s = await asyncio.to_thread(VMPortScanner.set_service_to_vm, vm, ip, i)
@@ -181,7 +181,7 @@ class VMPortScanner:
                 ports_subset = ports[offset:offset1]
                 runner = []
                 for j in ports_subset:
-                    runner.append(VMPortScanner.test_port_number(host, j, 3))
+                    runner.append(VMPortScanner.test_port_number(host, j, 4))
                 result = await asyncio.gather(*runner, return_exceptions=True)
                 # result.append((True, host, 12345))
                 # result.append((True, host, 12346))
@@ -211,7 +211,7 @@ class VMPortScanner:
     async def async_run(tenants):
         start_time = time.time()
         # Get the vm with the tenant
-        limit = 50
+        limit = 100
         netbox_vms = await asyncio.to_thread(VMPortScanner.get_vm_by_tenant, tenants)
         pages = math.ceil(len(netbox_vms) / (limit if limit is not None or limit != 0 else len(netbox_vms)))
         for i in range(0, pages):
