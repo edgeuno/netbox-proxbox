@@ -62,7 +62,7 @@ class VMPortScanner:
 
     @staticmethod
     async def process_vm(vm):
-        print(f'processing {vm}')
+        print(f'Start processing {vm}')
         ips = await asyncio.to_thread(VMPortScanner.get_ips_for_vm, vm)
         runner = []
         services = []
@@ -80,6 +80,7 @@ class VMPortScanner:
         for s in services:
             await asyncio.to_thread(vm.services.add, s)
         await asyncio.to_thread(vm.save)
+        print(f'Finish processing {vm}')
         return vm
 
     @staticmethod
@@ -149,6 +150,7 @@ class VMPortScanner:
             if s is not None:
                 services.append(s)
         services = await asyncio.to_thread(VMPortScanner.remove_services_from_vm, vm, services)
+        print(f'Open ports: {ports_open}')
         return services
 
     @staticmethod
@@ -171,14 +173,14 @@ class VMPortScanner:
     async def process_ports(host, ports, limit=100):
         start_time = time.time()
         # report a status message
-        print(f'Scanning {host}...')
+        print(f'Start Scanning {host}...')
         pages = math.ceil(len(ports) / (limit if limit is not None or limit != 0 else len(ports)))
         open_ports = []
         for i in range(0, pages):
             try:
                 offset = i * limit
                 offset1 = ((i + 1) * limit)
-                print(f'{host}:{offset}-{offset1}')
+                # print(f'{host}:{offset}-{offset1}')
                 ports_subset = ports[offset:offset1]
                 runner = []
                 for j in ports_subset:
@@ -205,6 +207,7 @@ class VMPortScanner:
                 print(e)
         # append((12345, 'tcp', mapped_ports.get(f'{12345}/tcp'), host))
         # open_ports.append((12346, 'tcp', {'description': 'Unknown', 'name': f'{12346}'}, host))
+        print(f'Finish scanning {host}...')
         print("--- %s seconds ---" % (time.time() - start_time))
         return open_ports
 
@@ -216,23 +219,23 @@ class VMPortScanner:
         netbox_vms = await asyncio.to_thread(VMPortScanner.get_vm_by_tenant, tenants)
         # pages = math.ceil(len(netbox_vms) / (limit if limit is not None or limit != 0 else len(netbox_vms)))
         # for i in range(0, pages):
-        try:
-            #         offset = i * limit
-            #         offset1 = ((i + 1) * limit)
-            #         print(f'running {offset}:{offset1}')
-            vms_subset = netbox_vms  # netbox_vms[offset:offset1]
-            runner = []
-            for vm in vms_subset:
-                runner.append(VMPortScanner.process_vm(vm))
-            result = await asyncio.gather(*runner, return_exceptions=True)
-            print(result)
-            # print("---Partial run time %s seconds ---" % (time.time() - start_time))
-        except Exception as e:
-            print(e)
-        # vm = netbox_vms[0]
-        # vm1 = netbox_vms[1]
-        # runner = [VMPortScanner.process_vm(vm), VMPortScanner.process_vm(vm1)]
-        # # runner = [VMPortScanner.process_vm(vm1)]
-        # results = await asyncio.gather(*runner)
-        # print(results)
+        # try:
+        #     #         offset = i * limit
+        #     #         offset1 = ((i + 1) * limit)
+        #     #         print(f'running {offset}:{offset1}')
+        #     vms_subset = netbox_vms  # netbox_vms[offset:offset1]
+        #     runner = []
+        #     for vm in vms_subset:
+        #         runner.append(VMPortScanner.process_vm(vm))
+        #     result = await asyncio.gather(*runner, return_exceptions=True)
+        #     print(result)
+        #     # print("---Partial run time %s seconds ---" % (time.time() - start_time))
+        # except Exception as e:
+        #     print(e)
+        vm = netbox_vms[0]
+        vm1 = netbox_vms[1]
+        runner = [VMPortScanner.process_vm(vm), VMPortScanner.process_vm(vm1)]
+        # runner = [VMPortScanner.process_vm(vm1)]
+        results = await asyncio.gather(*runner)
+        print(results)
         print("---Total run time %s seconds ---" % (time.time() - start_time))
