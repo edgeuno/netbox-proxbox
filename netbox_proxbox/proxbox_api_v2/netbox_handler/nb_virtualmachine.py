@@ -643,10 +643,10 @@ def upsert_netbox_vm(proxmox_vm, config=None):
     vmid = proxmox_vm.vmid
     node = proxmox_vm.node
 
-    netbox_vm = VirtualMachine.objects.filter(cluster__name=cluster_name, name=vm_name).first()
+    netbox_vm = VirtualMachine.objects.filter(cluster__name=cluster_name, custom_field_data__proxmox_id=vmid,
+                                              custom_field_data__proxmox_node=node).first()
     if netbox_vm is None:
-        netbox_vm = VirtualMachine.objects.filter(cluster__name=cluster_name, custom_field_data__proxmox_id=vmid,
-                                                  custom_field_data__proxmox_node=node).first()
+        netbox_vm = VirtualMachine.objects.filter(cluster__name=cluster_name, name=vm_name).first()
 
     status = 'offline'
     if proxmox_vm.status == 'running':
@@ -671,6 +671,7 @@ def upsert_netbox_vm(proxmox_vm, config=None):
         netbox_vm.status = status
         netbox_vm.cluster_id = proxmox_vm.cluster.nb_cluster.id
         netbox_vm.cluster = proxmox_vm.cluster.nb_cluster
+        netbox_vm.name = vm_name
         netbox_vm.save()
         # Add the custom fields
         netbox_vm.custom_field_data["proxmox_id"] = proxmox_vm.vmid

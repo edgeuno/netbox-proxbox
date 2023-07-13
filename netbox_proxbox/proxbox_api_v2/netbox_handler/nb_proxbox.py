@@ -44,9 +44,9 @@ def upsert_proxbox_item(proxmox_vm) -> ProxmoxVM:
 
     vcpus, memory_Mb, disk_Gb = get_resources(proxmox_vm)
 
-    proxbox_vm = ProxmoxVM.objects.filter(domain=domain, name=proxmox_vm.name).first()
+    proxbox_vm = ProxmoxVM.objects.filter(domain=domain, proxmox_vm_id=vmid).first()
     if proxbox_vm is None:
-        proxbox_vm = ProxmoxVM.objects.filter(domain=domain, proxmox_vm_id=vmid).first()
+        proxbox_vm = ProxmoxVM.objects.filter(domain=domain, name=proxmox_vm.name).first()
 
     if proxbox_vm is None:
         proxbox_vm = ProxmoxVM(
@@ -59,6 +59,7 @@ def upsert_proxbox_item(proxmox_vm) -> ProxmoxVM:
         )
         proxbox_vm.save()
     if proxbox_vm:
+        proxbox_vm.name = proxmox_vm.name
         proxbox_vm.instance_data = proxmox_vm.data,
         proxbox_vm.config_data = config
         proxbox_vm.url = 'https://{}:{}/#v1:0:={}%2F{} '.format(domain, port, vm_type, vmid)
