@@ -149,7 +149,7 @@ class VMPortScanner:
             s = await asyncio.to_thread(VMPortScanner.set_service_to_vm, vm, ip, i)
             if s is not None:
                 services.append(s)
-        services = await asyncio.to_thread(VMPortScanner.remove_services_from_vm, vm, services)
+        # services = await asyncio.to_thread(VMPortScanner.remove_services_from_vm, vm, services)
         print(f'Open ports: {ports_open}')
         return services
 
