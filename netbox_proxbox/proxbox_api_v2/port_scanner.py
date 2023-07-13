@@ -64,12 +64,14 @@ class VMPortScanner:
     async def process_vm(vm):
         print(f'Start processing {vm}')
         ips = await asyncio.to_thread(VMPortScanner.get_ips_for_vm, vm)
+        await asyncio.sleep(0)
         runner = []
         services = []
         for ip in ips:
             runner.append(VMPortScanner.process_ip(vm, ip))
 
         result = await asyncio.gather(*runner, return_exceptions=True)
+        await asyncio.sleep(0)
 
         for r in result:
             if isinstance(r, Exception):
@@ -79,6 +81,7 @@ class VMPortScanner:
 
         for s in services:
             await asyncio.to_thread(vm.services.add, s)
+            await asyncio.sleep(0)
         await asyncio.to_thread(vm.save)
         print(f'Finish processing {vm}')
         return vm
@@ -144,6 +147,7 @@ class VMPortScanner:
         host = str(ip.address.ip)
         ports_range = range(1, 65535)
         ports_open = await VMPortScanner.process_ports(host, ports_range, 100)
+        await asyncio.sleep(0)
         services = []
         for i in ports_open:
             s = await asyncio.to_thread(VMPortScanner.set_service_to_vm, vm, ip, i)
@@ -186,6 +190,7 @@ class VMPortScanner:
                 for j in ports_subset:
                     runner.append(VMPortScanner.test_port_number(host, j, 3))
                 result = await asyncio.gather(*runner, return_exceptions=True)
+                await asyncio.sleep(0)
                 # result.append((True, host, 12345))
                 # result.append((True, host, 12346))
                 for k in result:
