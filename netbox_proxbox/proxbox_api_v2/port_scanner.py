@@ -18,6 +18,7 @@ if file_contents is None:
 
 mapped_ports = json.loads(file_contents)
 
+
 # https://github.com/silverwind/port-numbers/blob/master/ports.json
 # SuperFastPython.com
 # https://superfastpython.com/asyncio-port-scanner/
@@ -213,21 +214,21 @@ class VMPortScanner:
         # Get the vm with the tenant
         limit = 100
         netbox_vms = await asyncio.to_thread(VMPortScanner.get_vm_by_tenant, tenants)
-        pages = math.ceil(len(netbox_vms) / (limit if limit is not None or limit != 0 else len(netbox_vms)))
-        for i in range(0, pages):
-            try:
-                offset = i * limit
-                offset1 = ((i + 1) * limit)
-                print(f'running {offset}:{offset1}')
-                vms_subset = netbox_vms[offset:offset1]
-                runner = []
-                for vm in vms_subset:
-                    runner.append(VMPortScanner.process_vm(vm))
-                result = await asyncio.gather(*runner, return_exceptions=True)
-                print(result)
-                print("---Partial run time %s seconds ---" % (time.time() - start_time))
-            except Exception as e:
-                print(e)
+        # pages = math.ceil(len(netbox_vms) / (limit if limit is not None or limit != 0 else len(netbox_vms)))
+        # for i in range(0, pages):
+        try:
+            #         offset = i * limit
+            #         offset1 = ((i + 1) * limit)
+            #         print(f'running {offset}:{offset1}')
+            vms_subset = netbox_vms  # netbox_vms[offset:offset1]
+            runner = []
+            for vm in vms_subset:
+                runner.append(VMPortScanner.process_vm(vm))
+            result = await asyncio.gather(*runner, return_exceptions=True)
+            print(result)
+            # print("---Partial run time %s seconds ---" % (time.time() - start_time))
+        except Exception as e:
+            print(e)
         # vm = netbox_vms[0]
         # vm1 = netbox_vms[1]
         # runner = [VMPortScanner.process_vm(vm), VMPortScanner.process_vm(vm1)]
