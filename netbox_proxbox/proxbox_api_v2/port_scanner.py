@@ -237,5 +237,5 @@ class VMPortScanner:
         # runner = [VMPortScanner.process_vm(vm), VMPortScanner.process_vm(vm1)]
         # # runner = [VMPortScanner.process_vm(vm1)]
         # results = await asyncio.gather(*runner)
-        print(results)
+        # print(results)
         print("---Total run time %s seconds ---" % (time.time() - start_time))
