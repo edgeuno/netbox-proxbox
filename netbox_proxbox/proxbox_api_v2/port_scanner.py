@@ -348,7 +348,7 @@ class VMPortScannerSync:
 
     @staticmethod
     def random_list(input):
-        bias_port = [22, 80, 8080, 22022]
+        bias_port = [22, 80, 8080, 22022, 443]
         random.shuffle(input)
         for i, v in enumerate(input):
             ip, vm, port = v
@@ -377,16 +377,25 @@ class VMPortScannerSync:
             ports_to_scan = ports_to_scan + r
 
         ports_to_scan = VMPortScannerSync.random_list(ports_to_scan)
+        limit = 5000
+        pages = math.ceil(len(ports_to_scan) / limit)
 
-        executor = ThreadPoolExecutor(max_workers=5000)
-        futures = [executor.submit(VMPortScannerSync.get_service_from_port, port, 4) for port in ports_to_scan]
+        list_ports = []
+        for i in range(0, pages):
+            offset = i * limit
+            offset1 = ((i + 1) * limit)
+            ports_subset = ports_to_scan[offset:offset1]
+            list_ports.append(ports_subset)
 
-        for future in as_completed(futures):
-            r = future.result()
-            if r is not None:
-                r_vm, r_ip, r_port, r_service = r
-                output.append((r_vm, r_service))
+            executor = ThreadPoolExecutor(max_workers=limit)
+            futures = [executor.submit(VMPortScannerSync.get_service_from_port, port, 4) for port in ports_to_scan]
 
+            for future in as_completed(futures):
+                r = future.result()
+                if r is not None:
+                    r_vm, r_ip, r_port, r_service = r
+                    output.append((r_vm, r_service))
+            executor.shutdown()
         print("---Total run time %s seconds ---" % (time.time() - start_time))
         print(f'Finish processing {vms}')
         return output
