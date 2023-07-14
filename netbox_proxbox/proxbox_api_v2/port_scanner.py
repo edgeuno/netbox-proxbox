@@ -527,17 +527,17 @@ class VMPortScannerSync:
             ports_subset = netbox_vms[offset:offset1]
             list_vms.append(ports_subset)
 
-        result = []
-        for vms_subset in list_vms:
-            value = VMPortScannerSync.run_bulk(vms_subset)
-            if value is not None:
-                result = result + value
+        result = VMPortScannerSync.run_bulk([netbox_vms[0]])
+        # for vms_subset in list_vms:
+        #     value = VMPortScannerSync.run_bulk(vms_subset)
+        #     if value is not None:
+        #         result = result + value
         # futures = [pool.submit(VMPortScannerSync.run_bulk(vms_subset)) for vms_subset in list_vms]
         # for future in as_completed(futures):
         #     value = future.result()
         #     if value is not None:
         #         result = result + value
-        # print(result)
+        print(result)
 
         # for i in netbox_vms:
         #     if i.name == 'E1-cpanel.edgeuno.com':
