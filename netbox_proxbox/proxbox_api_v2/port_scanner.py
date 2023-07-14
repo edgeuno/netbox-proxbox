@@ -377,7 +377,7 @@ class VMPortScannerSync:
             ports_to_scan = ports_to_scan + r
 
         ports_to_scan = VMPortScannerSync.random_list(ports_to_scan)
-        limit = 10000
+        limit = 2000
         total = len(ports_to_scan)
         pages = math.ceil( total / limit)
 
