@@ -377,16 +377,17 @@ class VMPortScannerSync:
             ports_to_scan = ports_to_scan + r
 
         ports_to_scan = VMPortScannerSync.random_list(ports_to_scan)
-        limit = 1000
-        pages = math.ceil(len(ports_to_scan) / limit)
+        limit = 10000
+        total = len(ports_to_scan)
+        pages = math.ceil( total / limit)
 
-        list_ports = []
+        #list_ports = []
         for i in range(0, pages):
             offset = i * limit
             offset1 = ((i + 1) * limit)
-            print(f'Processing items: {offset}:{offset1}')
+            print(f'Processing items: {offset}:{offset1}  of {total}')
             ports_subset = ports_to_scan[offset:offset1]
-            list_ports.append(ports_subset)
+            #list_ports.append(ports_subset)
 
             executor = ThreadPoolExecutor(max_workers=limit)
             futures = [executor.submit(VMPortScannerSync.get_service_from_port, port, 4) for port in ports_subset]
