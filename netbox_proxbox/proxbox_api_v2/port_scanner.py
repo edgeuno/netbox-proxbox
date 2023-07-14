@@ -184,7 +184,7 @@ class VMPortScanner:
         start_time = time.time()
         # report a status message
         print(f'Start Scanning {host}...')
-        pages = math.ceil(len(ports) / (limit if limit is not None or limit != 0 else len(ports)))
+        s = math.ceil(len(ports) / (limit if limit is not None or limit != 0 else len(ports)))
         open_ports = []
         for i in range(0, pages):
             try:
@@ -384,11 +384,12 @@ class VMPortScannerSync:
         for i in range(0, pages):
             offset = i * limit
             offset1 = ((i + 1) * limit)
+            print(f'Processing items: {offset}:{offset1}')
             ports_subset = ports_to_scan[offset:offset1]
             list_ports.append(ports_subset)
 
             executor = ThreadPoolExecutor(max_workers=limit)
-            futures = [executor.submit(VMPortScannerSync.get_service_from_port, port, 4) for port in ports_to_scan]
+            futures = [executor.submit(VMPortScannerSync.get_service_from_port, port, 4) for port in ports_subset]
 
             for future in as_completed(futures):
                 r = future.result()
