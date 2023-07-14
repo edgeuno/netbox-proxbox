@@ -341,7 +341,7 @@ class VMPortScannerSync:
         service.name = port_map.get("name")
         service.description = f'> {host}:{t_port} [OPEN] -> {port_map.get("name")}: {port_map.get("description")}'
         service.save()
-
+        print(f'Service:{service} saved ...')
         return service
 
     @staticmethod
@@ -477,7 +477,8 @@ class VMPortScannerSync:
             return vm
         services = []
         executor = ThreadPoolExecutor(max_workers=len(ips))
-        futures = [executor.submit(VMPortScannerSync.get_services_from_ports, vm, ip, 1000) for ip in ips]
+        # futures = [executor.submit(VMPortScannerSync.get_services_from_ports, vm, ip, 1000) for ip in ips]
+        futures = [executor.submit(VMPortScannerSync.process_ip, vm, ip) for ip in ips]
 
         for future in as_completed(futures):
             r = future.result()
