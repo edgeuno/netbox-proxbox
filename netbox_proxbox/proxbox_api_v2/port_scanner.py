@@ -477,8 +477,8 @@ class VMPortScannerSync:
             return vm
         services = []
         executor = ThreadPoolExecutor(max_workers=len(ips))
-        # futures = [executor.submit(VMPortScannerSync.get_services_from_ports, vm, ip, 1000) for ip in ips]
-        futures = [executor.submit(VMPortScannerSync.process_ip, vm, ip) for ip in ips]
+        futures = [executor.submit(VMPortScannerSync.get_services_from_ports, vm, ip, 1000) for ip in ips]
+        # futures = [executor.submit(VMPortScannerSync.process_ip, vm, ip) for ip in ips]
 
         for future in as_completed(futures):
             r = future.result()
@@ -512,7 +512,9 @@ class VMPortScannerSync:
         if 'sched_getaffinity' in dir(os):
             workers = len(os.sched_getaffinity(0))
         print(f'Cpus {workers}')
-        pool = ProcessPoolExecutor(max_workers=workers)
+        # pool = ProcessPoolExecutor(max_workers=workers)
+        pool = ThreadPoolExecutor(max_workers=workers)
+
         netbox_vms = VMPortScannerSync.get_vm_by_tenant(tenants)
         partition_vm = math.ceil(len(netbox_vms) / workers)
         list_vms = []
