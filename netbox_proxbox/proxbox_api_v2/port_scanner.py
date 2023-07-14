@@ -2,6 +2,7 @@ import asyncio
 import time
 import json
 import math
+import random
 
 import os
 
@@ -340,15 +341,28 @@ class VMPortScannerSync:
             vm.services.add(service)
 
             return vm, ip, port, service
-        print(f'> {host}:{port} [CLOSE]')
+        # rn = random.randint(0, 9)
+        # if rn > 8:
+        #     print(f'> {host}:{port} [CLOSE]')
         return None
+
+    @staticmethod
+    def random_list(input):
+        bias_port = [22, 80, 8080, 22022]
+        random.shuffle(input)
+        for i, v in enumerate(input):
+            ip, vm, port = v
+            if port in bias_port:
+                element = input.pop(i)
+                input.insert(0, element)
+
+        return input
 
     @staticmethod
     def process_vms(vms):
         start_time = time.time()
         print(f'Start processing {vms}')
         ips = []
-        services = []
         ports_to_scan = []
         output = []
 
@@ -362,8 +376,10 @@ class VMPortScannerSync:
             r = VMPortScannerSync.get_ports_for_ip(value)
             ports_to_scan = ports_to_scan + r
 
-        executor = ThreadPoolExecutor(max_workers=10000)
-        futures = [executor.submit(VMPortScannerSync.get_service_from_port, port, 3) for port in ports_to_scan]
+        ports_to_scan = VMPortScannerSync.random_list(ports_to_scan)
+
+        executor = ThreadPoolExecutor(max_workers=5000)
+        futures = [executor.submit(VMPortScannerSync.get_service_from_port, port, 4) for port in ports_to_scan]
 
         for future in as_completed(futures):
             r = future.result()
@@ -390,7 +406,7 @@ class VMPortScannerSync:
                 vm = i
                 break
         if vm:
-            result = VMPortScannerSync.process_vms([vm,netbox_vms[0]])
+            result = VMPortScannerSync.process_vms([vm, netbox_vms[0]])
             print(result)
         # for i in netbox_vms:
         #     if i.name == 'E1-cpanel.edgeuno.com':
