@@ -480,7 +480,7 @@ class VMPortScannerSync:
             return vm
         services = []
         executor = ThreadPoolExecutor(max_workers=len(ips))
-        futures = [executor.submit(VMPortScannerSync.get_services_from_ports, vm, ip, 100) for ip in ips]
+        futures = [executor.submit(VMPortScannerSync.get_services_from_ports, vm, ip, 10) for ip in ips]
         # futures = [executor.submit(VMPortScannerSync.process_ip, vm, ip) for ip in ips]
 
         for future in as_completed(futures):
