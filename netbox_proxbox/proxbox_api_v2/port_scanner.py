@@ -24,6 +24,9 @@ if file_contents is None:
 
 mapped_ports = json.loads(file_contents)
 
+import resource
+resource.setrlimit(resource.RLIMIT_NOFILE, (65536, 65536))
+
 
 # https://github.com/silverwind/port-numbers/blob/master/ports.json
 # SuperFastPython.com
