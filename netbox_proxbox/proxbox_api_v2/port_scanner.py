@@ -431,7 +431,7 @@ class VMPortScannerSync:
                 # report results in order
                 for future in as_completed(futures):
                     value = future.result()
-                    print(f'tracking for: {host} 3: {value}')
+                    # print(f'tracking for: {host} 3: {value}')
                     is_open, t_host, t_port = value
                     if is_open:
                         port_type = 'tcp'
