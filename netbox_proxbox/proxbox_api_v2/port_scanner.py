@@ -521,15 +521,12 @@ class VMPortScannerSync:
             offset1 = ((i + 1) * partition_vm)
             ports_subset = netbox_vms[offset:offset1]
             list_vms.append(ports_subset)
-        # vms_subset = list_vms[0]
-        vm = None
         result = []
         futures = [pool.submit(VMPortScannerSync.run_bulk(vms_subset)) for vms_subset in list_vms]
         for future in as_completed(futures):
             value = future.result()
             if value is not None:
                 result = result + value
-        # result = VMPortScannerSync.run_bulk(vms_subset)
         print(result)
 
         # for i in netbox_vms:
