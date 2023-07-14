@@ -4,7 +4,7 @@ from django.core.management.base import BaseCommand
 from django.utils import timezone
 import asyncio
 
-from netbox_proxbox.proxbox_api_v2.port_scanner import VMPortScanner
+from netbox_proxbox.proxbox_api_v2.port_scanner import VMPortScannerSync
 
 
 class Command(BaseCommand):
@@ -16,7 +16,8 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         tenants = options.get('tenants')
-        asyncio.run(VMPortScanner.async_run(tenants))
+        VMPortScannerSync.run(tenants)
+        # asyncio.run(VMPortScanner.async_run(tenants))
         # Scrapper.run()
         # Wrap things up
         self.stdout.write(
