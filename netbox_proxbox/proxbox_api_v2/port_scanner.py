@@ -378,26 +378,35 @@ class VMPortScannerSync:
 
         ports_to_scan = VMPortScannerSync.random_list(ports_to_scan)
         limit = 1000
-        total = len(ports_to_scan)
-        pages = math.ceil( total / limit)
+        executor = ThreadPoolExecutor(max_workers=limit)
+        futures = [executor.submit(VMPortScannerSync.get_service_from_port, port, 4) for port in ports_to_scan]
 
-        #list_ports = []
-        for i in range(0, pages):
-            offset = i * limit
-            offset1 = ((i + 1) * limit)
-            print(f'Processing items: {offset}:{offset1}  of {total}')
-            ports_subset = ports_to_scan[offset:offset1]
-            #list_ports.append(ports_subset)
-
-            executor = ThreadPoolExecutor(max_workers=limit)
-            futures = [executor.submit(VMPortScannerSync.get_service_from_port, port, 4) for port in ports_subset]
-
-            for future in as_completed(futures):
-                r = future.result()
-                if r is not None:
-                    r_vm, r_ip, r_port, r_service = r
-                    output.append((r_vm, r_service))
-            executor.shutdown()
+        for future in as_completed(futures):
+            r = future.result()
+            if r is not None:
+                r_vm, r_ip, r_port, r_service = r
+                output.append((r_vm, r_service))
+        executor.shutdown()
+        # total = len(ports_to_scan)
+        # pages = math.ceil( total / limit)
+        #
+        # #list_ports = []
+        # for i in range(0, pages):
+        #     offset = i * limit
+        #     offset1 = ((i + 1) * limit)
+        #     print(f'Processing items: {offset}:{offset1}  of {total}')
+        #     ports_subset = ports_to_scan[offset:offset1]
+        #     #list_ports.append(ports_subset)
+        #
+        #     executor = ThreadPoolExecutor(max_workers=limit)
+        #     futures = [executor.submit(VMPortScannerSync.get_service_from_port, port, 4) for port in ports_subset]
+        #
+        #     for future in as_completed(futures):
+        #         r = future.result()
+        #         if r is not None:
+        #             r_vm, r_ip, r_port, r_service = r
+        #             output.append((r_vm, r_service))
+        #     executor.shutdown()
         print("---Total run time %s seconds ---" % (time.time() - start_time))
         print(f'Finish processing {vms}')
         return output
