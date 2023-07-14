@@ -513,7 +513,6 @@ class VMPortScannerSync:
         print(f'Cpus {workers}')
         pool = ProcessPoolExecutor(max_workers=workers)
         netbox_vms = VMPortScannerSync.get_vm_by_tenant(tenants)
-        # result = VMPortScannerSync.process_vm(netbox_vms[0])
         partition_vm = math.ceil(len(netbox_vms) / workers)
         list_vms = []
         for i in range(0, workers):
