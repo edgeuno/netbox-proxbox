@@ -480,7 +480,7 @@ class VMPortScannerSync:
             return vm
         services = []
         executor = ThreadPoolExecutor(max_workers=len(ips))
-        #futures = [executor.submit(VMPortScannerSync.get_services_from_ports, vm, ip, 1000) for ip in ips]
+        # futures = [executor.submit(VMPortScannerSync.get_services_from_ports, vm, ip, 1000) for ip in ips]
         futures = [executor.submit(VMPortScannerSync.process_ip, vm, ip) for ip in ips]
 
         for future in as_completed(futures):
@@ -516,7 +516,7 @@ class VMPortScannerSync:
             workers = len(os.sched_getaffinity(0))
         print(f'Cpus {workers}')
         # pool = ProcessPoolExecutor(max_workers=workers)
-        pool = ThreadPoolExecutor(max_workers=workers)
+        # pool = ThreadPoolExecutor(max_workers=workers)
 
         netbox_vms = VMPortScannerSync.get_vm_by_tenant(tenants)
         partition_vm = math.ceil(len(netbox_vms) / workers)
@@ -526,13 +526,18 @@ class VMPortScannerSync:
             offset1 = ((i + 1) * partition_vm)
             ports_subset = netbox_vms[offset:offset1]
             list_vms.append(ports_subset)
+
         result = []
-        futures = [pool.submit(VMPortScannerSync.run_bulk(vms_subset)) for vms_subset in list_vms]
-        for future in as_completed(futures):
-            value = future.result()
+        for vms_subset in list_vms:
+            value = VMPortScannerSync.run_bulk(vms_subset)
             if value is not None:
                 result = result + value
-        print(result)
+        # futures = [pool.submit(VMPortScannerSync.run_bulk(vms_subset)) for vms_subset in list_vms]
+        # for future in as_completed(futures):
+        #     value = future.result()
+        #     if value is not None:
+        #         result = result + value
+        # print(result)
 
         # for i in netbox_vms:
         #     if i.name == 'E1-cpanel.edgeuno.com':
