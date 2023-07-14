@@ -411,6 +411,7 @@ class VMPortScannerSync:
     @staticmethod
     def process_ports(host, ports, limit=100):
         start_time = time.time()
+        print(f'tracking for: {host} 2')
         # report a status message
         print(f'Start Scanning {host}...')
         # result = VMPortScannerSync.test_port_number(host, 22021)
@@ -430,6 +431,7 @@ class VMPortScannerSync:
                 # report results in order
                 for future in as_completed(futures):
                     value = future.result()
+                    print(f'tracking for: {host} 3: {value}')
                     is_open, t_host, t_port = value
                     if is_open:
                         port_type = 'tcp'
@@ -455,6 +457,7 @@ class VMPortScannerSync:
 
     @staticmethod
     def process_ip(vm, ip):
+        print(f'tracking for: {vm} 1')
         host = str(ip.address.ip)
         ports_range = range(1, 65535)
 
