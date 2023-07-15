@@ -500,18 +500,18 @@ class VMPortScannerSync:
 
         # result = VMPortScannerSync.run_bulk([netbox_vms[0]])
         result = []
-        # for vms_subset in list_vms:
-        #     value = VMPortScannerSync.run_bulk(vms_subset)
-        #     if value is not None:
-        #         print(f'Finish list ...')
-        #         result = result + value
-        futures = [pool.submit(VMPortScannerSync.run_bulk(vms_subset)) for vms_subset in list_vms]
-        for future in as_completed(futures):
-            value = future.result()
+        for vms_subset in list_vms:
+            value = VMPortScannerSync.run_bulk(vms_subset)
             if value is not None:
+                print(f'Finish list ...')
                 result = result + value
+        # futures = [pool.submit(VMPortScannerSync.run_bulk(vms_subset)) for vms_subset in list_vms]
+        # for future in as_completed(futures):
+        #     value = future.result()
+        #     if value is not None:
+        #         result = result + value
+        # pool.shutdown()
         print(result)
-        pool.shutdown()
         # for i in netbox_vms:
         #     if i.name == 'E1-cpanel.edgeuno.com':
         #         vm = i
