@@ -188,7 +188,7 @@ class VMPortScanner:
         start_time = time.time()
         # report a status message
         print(f'Start Scanning {host}...')
-        s = math.ceil(len(ports) / (limit if limit is not None or limit != 0 else len(ports)))
+        pages = math.ceil(len(ports) / (limit if limit is not None or limit != 0 else len(ports)))
         open_ports = []
         for i in range(0, pages):
             try:
@@ -429,19 +429,21 @@ class VMPortScannerSync:
         # pool = ThreadPoolExecutor(max_workers=workers)
 
         netbox_vms = VMPortScannerSync.get_vm_by_tenant(tenants)
-        partition_vm = math.ceil(len(netbox_vms) / workers)
+        pages = math.ceil(len(netbox_vms) / workers)
         list_vms = []
         for i in range(0, workers):
-            offset = i * partition_vm
-            offset1 = ((i + 1) * partition_vm)
+            offset = i * pages
+            offset1 = ((i + 1) * pages)
             ports_subset = netbox_vms[offset:offset1]
             list_vms.append(ports_subset)
 
         # result = VMPortScannerSync.run_bulk([netbox_vms[0]])
-        # for vms_subset in list_vms:
-        #     value = VMPortScannerSync.run_bulk(vms_subset)
-        #     if value is not None:
-        #         result = result + value
+        result = []
+        for vms_subset in list_vms:
+            value = VMPortScannerSync.run_bulk(vms_subset)
+            if value is not None:
+                print(f'Finish list ...')
+                result = result + value
         # futures = [pool.submit(VMPortScannerSync.run_bulk(vms_subset)) for vms_subset in list_vms]
         # for future in as_completed(futures):
         #     value = future.result()
@@ -449,13 +451,13 @@ class VMPortScannerSync:
         #         result = result + value
         # print(result)
 
-        for i in netbox_vms:
-            if i.name == 'E1-cpanel.edgeuno.com':
-                vm = i
-                break
-        if vm:
-            result = VMPortScannerSync.run_bulk([vm, netbox_vms[0]])
-            print(result)
+        # for i in netbox_vms:
+        #     if i.name == 'E1-cpanel.edgeuno.com':
+        #         vm = i
+        #         break
+        # if vm:
+        #     result = VMPortScannerSync.run_bulk([vm, netbox_vms[0]])
+        #     print(result)
         # for i in netbox_vms:
         #     if i.name == 'E1-cpanel.edgeuno.com':
         #         vm = i
