@@ -319,7 +319,6 @@ class VMPortScannerSync:
     @staticmethod
     def process_ports(host, ports, limit=100):
         start_time = time.time()
-        print(f'tracking for: {host} 2')
         # report a status message
         print(f'Start Scanning {host}...')
         # result = VMPortScannerSync.test_port_number(host, 22021)
@@ -339,7 +338,6 @@ class VMPortScannerSync:
                 # report results in order
                 for future in as_completed(futures):
                     value = future.result()
-                    # print(f'tracking for: {host} 3: {value}')
                     is_open, t_host, t_port = value
                     if is_open:
                         port_type = 'tcp'
@@ -365,7 +363,6 @@ class VMPortScannerSync:
 
     @staticmethod
     def process_ip(vm, ip):
-        print(f'tracking for: {vm} 1')
         host = str(ip.address.ip)
         ports_range = range(1, 65535)
 
@@ -426,7 +423,7 @@ class VMPortScannerSync:
             workers = len(os.sched_getaffinity(0))
         print(f'Cpus {workers}')
         # pool = ProcessPoolExecutor(max_workers=workers)
-        # pool = ThreadPoolExecutor(max_workers=workers)
+        pool = ThreadPoolExecutor(max_workers=workers)
 
         netbox_vms = VMPortScannerSync.get_vm_by_tenant(tenants)
         pages = math.ceil(len(netbox_vms) / workers)
@@ -439,18 +436,18 @@ class VMPortScannerSync:
 
         # result = VMPortScannerSync.run_bulk([netbox_vms[0]])
         result = []
-        for vms_subset in list_vms:
-            value = VMPortScannerSync.run_bulk(vms_subset)
-            if value is not None:
-                print(f'Finish list ...')
-                result = result + value
-        # futures = [pool.submit(VMPortScannerSync.run_bulk(vms_subset)) for vms_subset in list_vms]
-        # for future in as_completed(futures):
-        #     value = future.result()
+        # for vms_subset in list_vms:
+        #     value = VMPortScannerSync.run_bulk(vms_subset)
         #     if value is not None:
+        #         print(f'Finish list ...')
         #         result = result + value
-        # print(result)
-
+        futures = [pool.submit(VMPortScannerSync.run_bulk(vms_subset)) for vms_subset in list_vms]
+        for future in as_completed(futures):
+            value = future.result()
+            if value is not None:
+                result = result + value
+        print(result)
+        pool.shutdown()
         # for i in netbox_vms:
         #     if i.name == 'E1-cpanel.edgeuno.com':
         #         vm = i
