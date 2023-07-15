@@ -412,7 +412,7 @@ class VMPortScannerSync:
         for future in as_completed(futures):
             value = future.result()
             output.append(value)
-
+        executor.shutdown()
         return output
 
     @staticmethod
@@ -422,8 +422,8 @@ class VMPortScannerSync:
         if 'sched_getaffinity' in dir(os):
             workers = len(os.sched_getaffinity(0))
         print(f'Cpus {workers}')
-        # pool = ProcessPoolExecutor(max_workers=workers)
-        pool = ThreadPoolExecutor(max_workers=workers)
+        pool = ProcessPoolExecutor(max_workers=workers)
+        # pool = ThreadPoolExecutor(max_workers=workers)
 
         netbox_vms = VMPortScannerSync.get_vm_by_tenant(tenants)
         pages = math.ceil(len(netbox_vms) / workers)
