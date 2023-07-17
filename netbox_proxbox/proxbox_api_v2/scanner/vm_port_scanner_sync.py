@@ -15,7 +15,7 @@ from virtualization.models import VirtualMachine, VMInterface
 from tenancy.models import Tenant, TenantGroup, Contact, ContactRole, ContactAssignment
 from ipam.models import Service
 
-file_path = str(os.path.dirname(os.path.realpath(__file__))) + "/ports.json"
+file_path = str(os.path.dirname(os.path.realpath(__file__))) + "/../ports.json"
 with open(file_path) as config_file:
     file_contents = config_file.read()
 
