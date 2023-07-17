@@ -4,7 +4,7 @@ from django.core.management.base import BaseCommand
 from django.utils import timezone
 import asyncio
 
-from netbox_proxbox.proxbox_api_v2.port_scanner import VMPortScannerSync
+from netbox_proxbox.proxbox_api_v2.scanner.vm_port_scanner_sync import VMPortScannerSync
 
 
 class Command(BaseCommand):
