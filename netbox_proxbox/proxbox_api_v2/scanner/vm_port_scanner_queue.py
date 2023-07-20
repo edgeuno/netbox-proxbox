@@ -37,8 +37,8 @@ class VMPortScannerQueue:
     _run_service_queue: bool = False
     _service_queue: List[str] = field(default_factory=(lambda: []))
     _service_queue_thread: Future[None] = None
-    _port_thread_max_size: int = 60000
-    _max_parallel_ports: int = 100
+    _port_thread_max_size: int = 40000
+    _max_parallel_ports: int = 1000
     _ip_list: List[Tuple] = field(default_factory=(lambda: []))
     _open_port_to_process: List[tuple] = field(default_factory=(lambda: []))
     _services: list[Tuple] = field(default_factory=(lambda: []))
@@ -165,7 +165,7 @@ class VMPortScannerQueue:
         vm, ip, port = pack
         host = str(ip.address.ip)
         # print(f'Processing {host}-{port}')
-        is_open = self.test_port_number(host, port, 4)
+        is_open = self.test_port_number(host, port, 5)
         if is_open:
             port_type = 'tcp'
             port_map = mapped_ports.get(f'{port}/tcp')
