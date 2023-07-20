@@ -165,7 +165,7 @@ class VMPortScannerQueue:
         vm, ip, port = pack
         host = str(ip.address.ip)
         # print(f'Processing {host}-{port}')
-        is_open = self.test_port_number(host, port, 4)
+        is_open = self.test_port_number(host, port, 3)
         if is_open:
             port_type = 'tcp'
             port_map = mapped_ports.get(f'{port}/tcp')
