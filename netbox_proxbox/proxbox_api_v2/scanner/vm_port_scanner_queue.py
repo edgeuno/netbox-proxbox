@@ -37,8 +37,8 @@ class VMPortScannerQueue:
     _run_service_queue: bool = False
     _service_queue: List[str] = field(default_factory=(lambda: []))
     _service_queue_thread: Future[None] = None
-    _port_thread_max_size: int = 40000
-    _max_parallel_ports: int = 1000
+    _port_thread_max_size: int = 20000
+    _max_parallel_ports: int = 100
     _ip_list: List[Tuple] = field(default_factory=(lambda: []))
     _open_port_to_process: List[tuple] = field(default_factory=(lambda: []))
     _services: list[Tuple] = field(default_factory=(lambda: []))
@@ -112,7 +112,7 @@ class VMPortScannerQueue:
         service.description = f'> {host}:{port} [OPEN] -> {port_map.get("name")}: {port_map.get("description")}'
         service.save()
         print(f'Service:{service} - {port} saved ...')
-        return (vm, ip, service)
+        return vm, ip, service
 
     def _process_service_queue(self):
         print("Running queue")
