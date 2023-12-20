@@ -733,13 +733,13 @@ def get_vm_to_delete_by_job(job_id, page, limit=100):
         query_count = '''
                     select *
                     from virtualization_virtualmachine as vv
-                    where id not in
+                    where id in
                           (select virtual_machine_id
                            from netbox_proxbox_proxmoxvm npv
-                           where npv.latest_job = '{}')
+                           where npv.latest_job <> '{}')
                     limit {} offset {}
                     '''.format(job_id, limit, offset)
-
+        print('[{:%H:%M:%S}] query: {}'.format(datetime.now(), query_count))
         results = VirtualMachine.objects.raw(query_count)
         output = []
         for i in results:
