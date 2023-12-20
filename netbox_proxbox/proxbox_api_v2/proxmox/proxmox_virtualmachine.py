@@ -155,23 +155,23 @@ class ProxmoxVirtualMachine:
                     continue
 
                 for vm in results:
-                    # runner.append(async_delete_vm(vm, job_id))
-                    print('[{:%H:%M:%S}] Deleting VM...{}'.format(timezone.now(), vm))
-                    try:
-                        r = await async_delete_vm(vm, job_id)
-                        if isinstance(r, Exception):
-                            continue
-                        print('[{:%H:%M:%S}] Adding to output...{}'.format(timezone.now(), r))
-                        output.append(r)
-                    except Exception as e1:
-                        print(e1)
+                    runner.append(async_delete_vm(vm, job_id))
+                    # print('[{:%H:%M:%S}] Deleting VM...{}'.format(timezone.now(), vm))
+                    # try:
+                    #     r = await async_delete_vm(vm, job_id)
+                    #     if isinstance(r, Exception):
+                    #         continue
+                    #     print('[{:%H:%M:%S}] Adding to output...{}'.format(timezone.now(), r))
+                    #     output.append(r)
+                    # except Exception as e1:
+                    #     print(e1)
 
             except Exception as e:
                 print(e)
 
-        # res_vms = await asyncio.gather(*runner, return_exceptions=True)
-        # for r in res_vms:
-        #     if isinstance(r, Exception):
-        #         continue
-        #     output.append(r)
+        res_vms = await asyncio.gather(*runner, return_exceptions=True)
+        for r in res_vms:
+            if isinstance(r, Exception):
+                continue
+            output.append(r)
         return output
