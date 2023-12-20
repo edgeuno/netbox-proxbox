@@ -63,21 +63,21 @@ class ProxmoxNodes:
         result = self.proxbox_session.session.nodes(self.name).network().get()
         for d in result:
             if 'address' in d and d['address'] == self.ip:
-                self.cidr = d['cidr']
-                self.bridge_ports = d['bridge_ports']
-                self.address = d['address']
-                self.iface = d['iface']
-                self.families = d['families']
-                self.autostart = d['autostart']
-                self.active = d['active']
-                self.method6 = d['method6']
-                self.priority = d['priority']
-                self.bridge_stp = d['bridge_stp']
-                self.bridge_fd = d['bridge_fd']
-                self.address = d['address']
-                self.gateway = d['gateway']
-                self.method = d['method']
-                self.netmask = d['netmask']
+                self.cidr = d['cidr'] if 'cidr' in d else None
+                self.bridge_ports = d['bridge_ports'] if 'bridge_ports' in d else None
+                self.address = d['address'] if 'address' in d else None
+                self.iface = d['iface'] if 'iface' in d else None
+                self.families = d['families'] if 'families' in d else None
+                self.autostart = d['autostart'] if 'autostart' in d else None
+                self.active = d['active'] if 'active' in d else None
+                self.method6 = d['method6'] if 'method6' in d else None
+                self.priority = d['priority'] if 'priority' in d else None
+                self.bridge_stp = d['bridge_stp'] if 'bridgeStp' in d else None
+                self.bridge_fd = d['bridge_fd'] if 'bridgeFd' in d else None
+                self.address = d['address'] if 'address' in d else None
+                self.gateway = d['gateway'] if 'gateway' in d else None
+                self.method = d['method'] if 'method' in d else None
+                self.netmask = d['netmask'] if 'netmask' in d else None
                 self.network_data = d
                 break
         self.nb_node = upsert_nodes(self)
