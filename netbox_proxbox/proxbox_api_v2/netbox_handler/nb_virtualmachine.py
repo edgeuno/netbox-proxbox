@@ -705,12 +705,11 @@ def get_total_count_by_job(job_id):
     try:
         with connection.cursor() as cursor:
             query_count = '''
-                select count(*) as count
-                from virtualization_virtualmachine as vv
-                where id not in
-                (select virtual_machine_id
-                    from netbox_proxbox_proxmoxvm npv
-                    where npv.latest_job = %s)
+                select count(*)
+from virtualization_virtualmachine as vv
+where id in (select virtual_machine_id
+             from netbox_proxbox_proxmoxvm npv
+             where npv.latest_job <> %s)
                 '''
             cursor.execute(query_count, [job_id])
             results = namedtuplefetchall(cursor)
