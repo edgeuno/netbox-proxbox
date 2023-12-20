@@ -137,6 +137,7 @@ class ProxmoxVirtualMachine:
         # Get all the vm's to be deleted
         limit = 100
         count = await async_get_total_count_by_job(job_id)
+        print('[{:%H:%M:%S}] Cleaning {} jobs...'.format(timezone.now(), count))
         # if there are no task just finish the process
         if count < 1:
             return
