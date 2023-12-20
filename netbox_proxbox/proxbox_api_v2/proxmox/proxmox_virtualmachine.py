@@ -144,23 +144,34 @@ class ProxmoxVirtualMachine:
 
         runner = []
         pages = math.ceil(count / limit)
+        print('[{:%H:%M:%S}] Total pages: {}'.format(timezone.now(), pages))
         for n in range(pages):
             # Get the vms to be deleted
+            print('[{:%H:%M:%S}] Getting the list of VMs...'.format(timezone.now()))
             try:
                 results = await async_get_vm_to_delete_by_job(job_id, n + 1, limit)
-
+                print('[{:%H:%M:%S}] Got for this page {}'.format(timezone.now(), len(results)))
                 if results is None or len(results) < 1:
                     continue
 
                 for vm in results:
-                    runner.append(async_delete_vm(vm, job_id))
+                    # runner.append(async_delete_vm(vm, job_id))
+                    print('[{:%H:%M:%S}] Deleting VM...{}'.format(timezone.now(), vm))
+                    try:
+                        r = await async_delete_vm(vm, job_id)
+                        if isinstance(r, Exception):
+                            continue
+                        print('[{:%H:%M:%S}] Adding to output...{}'.format(timezone.now(), r))
+                        output.append(r)
+                    except Exception as e1:
+                        print(e1)
 
             except Exception as e:
                 print(e)
 
-        res_vms = await asyncio.gather(*runner, return_exceptions=True)
-        for r in res_vms:
-            if isinstance(r, Exception):
-                continue
-            output.append(r)
+        # res_vms = await asyncio.gather(*runner, return_exceptions=True)
+        # for r in res_vms:
+        #     if isinstance(r, Exception):
+        #         continue
+        #     output.append(r)
         return output
