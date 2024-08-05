@@ -3,6 +3,12 @@ from .nb_device_type import upsert_device_type
 from .nb_site import upsert_site
 from ..plugins_config import NETBOX_NODE_ROLE_ID, NETBOX_SITE_ID, NETBOX_MANUFACTURER
 
+# import logging
+import traceback
+
+# logging.basicConfig(level=logging.DEBUG)
+# logger = logging.getLogger(__name__)
+
 try:
     from ipam.models import IPAddress
     from dcim.models import Device
@@ -14,7 +20,8 @@ try:
 
 
 except Exception as e:
-    print(e)
+    # logger.exception(e)
+    traceback.print_exc()
     raise e
 
 
@@ -30,6 +37,8 @@ def update_role(netbox_node, proxmox_node):
         netbox_node.save()
     except Exception as e:
         print("Error: update_role - {}".format(e))
+        # logger.exception(e)
+        # traceback.print_exc()
         print(e)
     return netbox_node
 
@@ -64,6 +73,8 @@ def create_node(proxmox_node):
         netbox_obj.save()
     except Exception as e:
         print("[proxbox_api.create.node] Creation of NODE failed.")
+        # logger.exception(e)
+        # traceback.print_exc()
         print(e)
         # In case nothing works, returns error
         return None
@@ -89,6 +100,8 @@ def update_device_type(netbox_node):
     except Exception as e:
         print("Error: update_device_type - {}".format(e))
         print(e)
+        # logger.exception(e)
+        # traceback.print_exc()
     return netbox_node
 
 
@@ -155,6 +168,8 @@ def get_set_interface(name, netbox_node):
 # Assing node ip if it doesn't have it
 def interface_ip_assign(netbox_node, proxmox_node):
     ip = proxmox_node.cidr
+    if ip is None and proxmox_node.ip is not None:
+        ip = proxmox_node.ip
     try:
         node_interface = get_set_interface('bond0', netbox_node)
         netbox_ip = IPAddress.objects.filter(address=ip).first()
@@ -174,8 +189,10 @@ def interface_ip_assign(netbox_node, proxmox_node):
                 netbox_ip.save()
             except Exception as e:
                 print("Error: interface_ip_assign-update - {}".format(e))
-                # print('')
                 print(e)
+                # print('')
+                # logger.exception(e)
+                # traceback.print_exc()
         # Associate the ip address to the vm
         # Reload the ip in order to get the correct family version
         netbox_ip = IPAddress.objects.filter(address=ip).first()
@@ -190,6 +207,8 @@ def interface_ip_assign(netbox_node, proxmox_node):
     except Exception as e:
         print("Error: interface_ip_assign-all - {}".format(e))
         print(e)
+        # logger.exception(e)
+        # traceback.print_exc()
     return netbox_node
 
 
@@ -203,6 +222,8 @@ def node_full_update(netbox_node, proxmox_node):
 
     except Exception as e:
         print("Error: node_full_update - {}".format(e))
+        # logger.exception(e)
+        # traceback.print_exc()
         print(e)
         raise e
     return netbox_node

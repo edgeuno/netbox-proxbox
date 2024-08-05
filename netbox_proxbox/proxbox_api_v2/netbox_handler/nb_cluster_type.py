@@ -1,9 +1,14 @@
-from dataclasses import dataclass, field
+# import logging
+import traceback
+
+# logging.basicConfig(level=logging.DEBUG)
+# logger = logging.getLogger(__name__)
 
 try:
     from virtualization.models import ClusterType
 except Exception as e:
-    print(e)
+    # print(e)
+    traceback.print_exc()
     raise e
 
 
@@ -24,6 +29,9 @@ def upsert_cluster_type(name=None, slug=None, description=None):
                 description=description
             )
         except Exception as request_error:
+            # logger.exception(request_error)
+            # traceback.print_exc()
+            print(request_error)
             raise RuntimeError(
                 "Error creating the '{0}' cluster type.".format(name)) from request_error
 

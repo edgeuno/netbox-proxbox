@@ -1,7 +1,14 @@
+# import logging
+import traceback
+
+# logging.basicConfig(level=logging.DEBUG)
+# logger = logging.getLogger(__name__)
+
 try:
     from virtualization.models import Cluster
 except Exception as e:
-    print(e)
+    # logger.exception(e)
+    traceback.print_exc()
     raise e
 
 from .nb_cluster_type import upsert_cluster_type
@@ -33,7 +40,10 @@ def upsert_cluster(proxmox_cluster):
             cluster.save()
             tg = tag()
             cluster.tags.add(tg)
-        except:
+        except Exception as e:
+            # logger.exception(e)
+            # traceback.print_exc()
+            print(e)
             return "Error creating the '{0}' cluster. Possible errors: the name '{0}' is already used.".format(
                 proxmox_cluster_name)
 

@@ -1,3 +1,10 @@
+
+# import logging
+import traceback
+
+# logging.basicConfig(level=logging.DEBUG)
+# logger = logging.getLogger(__name__)
+
 try:
     from dcim.models import Site
     from .nb_tag import tag
@@ -8,7 +15,8 @@ try:
     )
 
 except Exception as e:
-    print(e)
+    # logger.exception(e)
+    traceback.print_exc()
     raise e
 
 
@@ -55,6 +63,9 @@ def upsert_site(**kwargs):
                 )
                 site.save()
             except Exception as e:
+                # logger.exception(e)
+                # traceback.print_exc()
+                print(e)
                 return "Error creating the '{0}' site. Possible errors: the name '{0}' or slug '{1}' is already used.".format(
                     site_proxbox_name, site_proxbox_slug)
 

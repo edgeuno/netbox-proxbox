@@ -1,8 +1,15 @@
+# import logging
+import traceback
+
+# logging.basicConfig(level=logging.DEBUG)
+# logger = logging.getLogger(__name__)
+
 try:
     from django.template.defaultfilters import slugify
     from dcim.models import DeviceRole
 except Exception as e:
-    print(e)
+    # logger.exception(e)
+    traceback.print_exc()
     raise e
 
 
@@ -25,7 +32,10 @@ def upsert_role(**kwargs):
                     vm_role=True
                 )
                 role.save()
-            except:
+            except Exception as e:
+                # logger.exception(e)
+                # traceback.print_exc()
+                print(e)
                 role = None
         if role:
             return role
@@ -66,7 +76,10 @@ def upsert_role(**kwargs):
                     vm_role=True
                 )
                 role.save()
-            except:
+            except Exception as e:
+                # logger.exception(e)
+                # traceback.print_exc()
+                print(e)
                 return "Error creating the '{0}' role. Possible errors: the name '{0}' or slug '{1}' is already used.".format(
                     role_proxbox_name, role_proxbox_slug)
 

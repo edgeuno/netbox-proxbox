@@ -4,11 +4,18 @@ import re
 from netbox_proxbox.proxbox_api_v2.plugins_config import NETBOX_TENANT_REGEX_VALIDATOR, NETBOX_TENANT_NAME, \
     NETBOX_TENANT_DESCRIPTION
 
+# import logging
+import traceback
+
+# logging.basicConfig(level=logging.DEBUG)
+# logger = logging.getLogger(__name__)
+
 try:
     from extras.models import Tag
 
 except Exception as e:
-    print(e)
+    # logger.exception(e)
+    traceback.print_exc()
     raise e
 
 
@@ -41,6 +48,8 @@ def custom_tag(tag_name="Proxbox", tag_slug="proxbox", tag_description="No descr
             )
             output.save()
         except Exception as e:
+            # logger.exception(e)
+            # traceback.print_exc()
             print(e)
             print("Error creating the '{0}' tag. Possible errors: the name '{0}' or slug '{1}' is already used.".format(
                 tag_name, tag_slug))
@@ -116,8 +125,11 @@ def base_tag(netbox_vm, other_tags=None):
                     netbox_vm.tags.add(custom_tag)
                     sve_custom = True
             except Exception as e:
-                print("Error: base_tag-other_tags - {}".format(e))
+                # logger.exception(e)
+                # traceback.print_exc()
                 print(e)
+                print("Error: base_tag-other_tags - {}".format(e))
+
 
     if sve_custom:
         netbox_vm.save()
