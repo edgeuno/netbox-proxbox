@@ -26,6 +26,8 @@ queues in order to have a recurring synchronization with all the machines in pro
 Better synchronization with remove machines in proxmox.
 
 > **ALERT:** Braking changes has being made with version `0.0.10`.
+> **ALERT:** Last version compatible with nextbox 3.5.2
+> **ALERT:** From version 4.0.x onward use version `0.0.12`
 > 
 > - Django's queues are no longer in use, the model was change to a script is used to run the synchronization tool
 > - The configuration for the cluster is now set in a file for reduce complexity of the file `configuration.py`
@@ -61,10 +63,11 @@ Proxbox is currently able to get the following information from Proxmox:
 
 The following table shows the Netbox and Proxmox versions compatible (tested) with Proxbox plugin.
 
-| netbox version | proxmox version | proxbox version |
-| ------------- |-------------|-----------------|
-| >= v3.4.0 | >= v6.2.0  | =v0.0.10        |
-| >= v3.2.0 | >= v6.2.0 | =v0.0.4         |
+| netbox version   | proxmox version | proxbox version |
+|------------------|-------------|-----------------|
+| >= v4.0.7        | >= v6.2.0  | =v0.0.12        |
+| >= v3.5.2        | >= v6.2.0  | =v0.0.11        |
+| >= v3.2.0        | >= v6.2.0 | =v0.0.4         |
 | >= v3.0.0 < v3.2 | >= v6.2.0 | =v0.0.3         |
 
 
