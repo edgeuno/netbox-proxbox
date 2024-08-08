@@ -5,11 +5,12 @@ import math
 
 import os
 
+
 from virtualization.models import VirtualMachine, VMInterface
 from tenancy.models import Tenant, TenantGroup, Contact, ContactRole, ContactAssignment
 from ipam.models import Service
 
-file_path = str(os.path.dirname(os.path.realpath(__file__))) + "/ports.json"
+file_path = str(os.path.dirname(os.path.realpath(__file__))) + "/../ports.json"
 with open(file_path) as config_file:
     file_contents = config_file.read()
 
@@ -18,10 +19,11 @@ if file_contents is None:
 
 mapped_ports = json.loads(file_contents)
 
+import resource
 
-# https://github.com/silverwind/port-numbers/blob/master/ports.json
-# SuperFastPython.com
-# https://superfastpython.com/asyncio-port-scanner/
+resource.setrlimit(resource.RLIMIT_NOFILE, (65536, 65536))
+
+
 class VMPortScanner:
 
     @staticmethod

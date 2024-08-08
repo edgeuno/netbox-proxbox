@@ -7,6 +7,12 @@ from ..plugins_config import PROXMOX_SESSIONS
 
 from ...models import ProxmoxVM
 
+# import logging
+import traceback
+
+# logging.basicConfig(level=logging.DEBUG)
+# logger = logging.getLogger(__name__)
+
 
 def get_resources(proxmox_vm):
     # Save values from Proxmox
@@ -39,6 +45,8 @@ def upsert_proxbox_item(proxmox_vm) -> ProxmoxVM:
             config = proxmox_session.session.nodes(node).lxc(vmid).config.get()
     except Exception as e:
         print("Error: set_get_proxbox_item-1 - {}".format(e))
+        # logger.exception(e)
+        # traceback.print_exc()
         print(e)
         config = None
 
@@ -92,8 +100,10 @@ def delete_proxbox_vm_sql(proxbox_id):
                            [proxbox_id])
         return True
     except Exception as e:
-        print(e)
+        # logger.exception(e)
+        # traceback.print_exc()
         print("Error: delete_proxbox_vm_sql - {}".format(e))
+        print(e)
         return False
 
 
@@ -139,6 +149,8 @@ def get_proxmox_config(vm):
                 config = proxmox.nodes(node).lxc(vmid).config.get()
     except Exception as e:
         print("Error: get_promox_config-1 - {}".format(e))
+        # logger.exception(e)
+        # traceback.print_exc()
         print(e)
         config = None
     return config, proxbox_vm, domain, node, vmid, type
