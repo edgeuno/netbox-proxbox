@@ -1,5 +1,4 @@
 import os
-import pytz
 import uuid
 from datetime import datetime
 # Provides standard field types like 'CharField' and 'ForeignKey'
