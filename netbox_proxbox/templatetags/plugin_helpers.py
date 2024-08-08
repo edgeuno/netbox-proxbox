@@ -2,7 +2,10 @@ from django import template
 from django.apps import apps
 from django.urls import NoReverseMatch, reverse
 
-from extras.plugins import PluginConfig
+try:
+    from extras.plugins import PluginConfig
+except Exception as e:
+    from netbox.plugins import PluginConfig
 from utilities.forms import TableConfigForm
 
 register = template.Library()
