@@ -26,9 +26,11 @@ queues in order to have a recurring synchronization with all the machines in pro
 Better synchronization with remove machines in proxmox.
 
 > **ALERT:** Braking changes has being made with version `0.0.10`.
+
 > **ALERT:** Last version compatible with nextbox 3.5.2
+
 > **ALERT:** From version 4.0.x onward use version `0.0.12`
-> 
+ 
 > - Django's queues are no longer in use, the model was change to a script is used to run the synchronization tool
 > - The configuration for the cluster is now set in a file for reduce complexity of the file `configuration.py`
 > - Some of the code from the of official proxbox has being merge with this repository.
