@@ -4,6 +4,12 @@ from django.utils import timezone
 import pytz
 from datetime import datetime
 
+# import logging
+import traceback
+
+# logging.basicConfig(level=logging.DEBUG)
+# logger = logging.getLogger(__name__)
+
 try:
     from django.db import connection, transaction
     from django.template.defaultfilters import slugify
@@ -26,7 +32,8 @@ try:
 
 
 except Exception as e:
-    print(e)
+    # logger.exception(e)
+    traceback.print_exc()
     raise e
 
 ipv4_regex = r"\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}(\/\d{1,3})?"
@@ -261,8 +268,9 @@ def contact_parse_set(test_str, name):
             contact_role.save()
     except Exception as e:
         print("Error: contact_parse_set - {}".format(e))
+        # logger.exception(e)
+        # traceback.print_exc()
         print(e)
-
     return contact, contact_role
 
 
@@ -300,6 +308,8 @@ def set_assign_contact(test_str, name, object_id, content_type):
             # assign_contact_to_tenant(tenant, contact, contact_role, content_type)
     except Exception as e:
         print("Error: set_assign_contact - {}".format(e))
+        # logger.exception(e)
+        # traceback.print_exc()
         print(e)
     return contact, contact_role, contact_assigment
 
@@ -321,6 +331,8 @@ def get_set_tenant_from_configuration(test_str):
             )
             nb_tenant.save()
         except Exception as e:
+            # logger.exception(e)
+            # traceback.print_exc()
             print(e)
             raise e
     content_type = ContentType.objects.filter(app_label="tenancy", model="tenant").first()
@@ -355,6 +367,8 @@ def set_contact_to_vm(test_str, netbox_vm):
         return netbox_vm
     except Exception as e:
         print("Error: set_contact_to_vm - {}".format(e))
+        # logger.exception(e)
+        # traceback.print_exc()
         print(e)
         return netbox_vm
 
@@ -365,6 +379,8 @@ def base_add_configuration(netbox_vm, proxmox_vm, config=None):
             netbox_vm = default_tenant(netbox_vm)
     except Exception as e1:
         print("Error: base_add_configuration-1 - {}".format(e1))
+        # logger.exception(e1)
+        # traceback.print_exc()
         print(e1)
 
     if config is None:
@@ -381,6 +397,8 @@ def base_add_configuration(netbox_vm, proxmox_vm, config=None):
         # print('no description')
     except Exception as e2:
         print("Error: base_add_configuration-3 - {}".format(e2))
+        # logger.exception(e2)
+        # traceback.print_exc()
         print(e2)
     return netbox_vm
 
@@ -403,6 +421,8 @@ def update_vm_role(netbox_vm, proxmox_vm):
     except Exception as e:
         print("Error: update_vm_role - {}".format(e))
         print("[update_vm_role] Updating vm role fails")
+        # logger.exception(e)
+        # traceback.print_exc()
         print(e)
     return netbox_vm
 
@@ -611,6 +631,9 @@ def base_add_ip(netbox_vm, proxmox_vm, config=None):
                 network_str = config['ipconfig0']
     except  Exception as e:
         print("Error: base_add_ip-2 - {}".format(e))
+        # logger.exception(e)
+        # traceback.print_exc()
+        print(e)
         network_str = None
 
     try:
@@ -629,10 +652,14 @@ def base_add_ip(netbox_vm, proxmox_vm, config=None):
                     netbox_vm = set_ipv4(netbox_vm, vm_interface, ipv4)
                 except Exception as e:
                     print("Error: base_add_ip-3 - {}".format(e))
+                    # print(e)
+                    # traceback.print_exc()
                     print(e)
                 netbox_vm.save()
     except Exception as e:
         print("Error: base_add_ip-4 - {}".format(e))
+        # logger.exception(e)
+        # traceback.print_exc()
         print(e)
     return netbox_vm
 
@@ -643,10 +670,10 @@ def upsert_netbox_vm(proxmox_vm, config=None):
     vmid = proxmox_vm.vmid
     node = proxmox_vm.node
 
-    netbox_vm = VirtualMachine.objects.filter(cluster__name=cluster_name, name=vm_name).first()
+    netbox_vm = VirtualMachine.objects.filter(cluster__name=cluster_name, custom_field_data__proxmox_id=vmid,
+                                              custom_field_data__proxmox_node=node).first()
     if netbox_vm is None:
-        netbox_vm = VirtualMachine.objects.filter(cluster__name=cluster_name, custom_field_data__proxmox_id=vmid,
-                                                  custom_field_data__proxmox_node=node).first()
+        netbox_vm = VirtualMachine.objects.filter(cluster__name=cluster_name, name=vm_name).first()
 
     status = 'offline'
     if proxmox_vm.status == 'running':
@@ -664,6 +691,8 @@ def upsert_netbox_vm(proxmox_vm, config=None):
         except Exception as e:
             print("Error: get_set_vm - {}".format(e))
             print("[get_set_vm] Creation of VM/CT failed.")
+            # logger.exception(e)
+            # traceback.print_exc()
             print(e)
             netbox_vm = None
 
@@ -671,6 +700,7 @@ def upsert_netbox_vm(proxmox_vm, config=None):
         netbox_vm.status = status
         netbox_vm.cluster_id = proxmox_vm.cluster.nb_cluster.id
         netbox_vm.cluster = proxmox_vm.cluster.nb_cluster
+        netbox_vm.name = vm_name
         netbox_vm.save()
         # Add the custom fields
         netbox_vm.custom_field_data["proxmox_id"] = proxmox_vm.vmid
@@ -704,12 +734,11 @@ def get_total_count_by_job(job_id):
     try:
         with connection.cursor() as cursor:
             query_count = '''
-                select count(*) as count
-                from virtualization_virtualmachine as vv
-                where id not in
-                (select virtual_machine_id
-                    from netbox_proxbox_proxmoxvm npv
-                    where npv.latest_job = %s)
+                select count(*)
+from virtualization_virtualmachine as vv
+where id in (select virtual_machine_id
+             from netbox_proxbox_proxmoxvm npv
+             where npv.latest_job <> %s)
                 '''
             cursor.execute(query_count, [job_id])
             results = namedtuplefetchall(cursor)
@@ -718,8 +747,10 @@ def get_total_count_by_job(job_id):
             return count
 
     except Exception as e:
-        print(e)
         print("Error: get_total_pages - {}".format(e))
+        # logger.exception(e)
+        # traceback.print_exc()
+        print(e)
         return 0
 
 
@@ -733,13 +764,13 @@ def get_vm_to_delete_by_job(job_id, page, limit=100):
         query_count = '''
                     select *
                     from virtualization_virtualmachine as vv
-                    where id not in
+                    where id in
                           (select virtual_machine_id
                            from netbox_proxbox_proxmoxvm npv
-                           where npv.latest_job = '{}')
+                           where npv.latest_job <> '{}')
                     limit {} offset {}
                     '''.format(job_id, limit, offset)
-
+        print('[{:%H:%M:%S}] query: {}'.format(datetime.now(), query_count))
         results = VirtualMachine.objects.raw(query_count)
         output = []
         for i in results:
@@ -747,8 +778,10 @@ def get_vm_to_delete_by_job(job_id, page, limit=100):
         return output
 
     except Exception as e:
-        print(e)
         print("Error: get_vm_to_delete - {}".format(e))
+        # logger.exception(e)
+        # traceback.print_exc()
+        print(e)
         return None
 
 
@@ -776,6 +809,8 @@ def full_vm_delete(vm, proxbox_vm):
                 proxbox_vm.delete()
             except Exception as e:
                 print(f'[ERROR] The proxbox vm/ct')
+                # logger.exception(e)
+                # traceback.print_exc()
                 print(e)
         # with transaction.atomic():
         r = vm.delete()  # VirtualMachine.objects.filter(id=vm.id).delete()
@@ -783,6 +818,8 @@ def full_vm_delete(vm, proxbox_vm):
         print(r)
     except Exception as e:
         print(f'[ERROR] Deleting vm - 1 ')
+        # logger.exception(e)
+        # traceback.print_exc()
         print(e)
     finally:
         return vm
@@ -825,5 +862,7 @@ def delete_vm(vm, job_id):
                         timezone.now(), vm.name))
     except Exception as e:
         print(f'[ERROR] Deleting vm')
+        # logger.exception(e)
+        # traceback.print_exc()
         print(e)
     return vm

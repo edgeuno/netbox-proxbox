@@ -7,6 +7,12 @@ from ..plugins_config import PROXMOX_SESSIONS
 
 from ...models import ProxmoxVM
 
+# import logging
+import traceback
+
+# logging.basicConfig(level=logging.DEBUG)
+# logger = logging.getLogger(__name__)
+
 
 def get_resources(proxmox_vm):
     # Save values from Proxmox
@@ -39,14 +45,16 @@ def upsert_proxbox_item(proxmox_vm) -> ProxmoxVM:
             config = proxmox_session.session.nodes(node).lxc(vmid).config.get()
     except Exception as e:
         print("Error: set_get_proxbox_item-1 - {}".format(e))
+        # logger.exception(e)
+        # traceback.print_exc()
         print(e)
         config = None
 
     vcpus, memory_Mb, disk_Gb = get_resources(proxmox_vm)
 
-    proxbox_vm = ProxmoxVM.objects.filter(domain=domain, name=proxmox_vm.name).first()
+    proxbox_vm = ProxmoxVM.objects.filter(domain=domain, proxmox_vm_id=vmid).first()
     if proxbox_vm is None:
-        proxbox_vm = ProxmoxVM.objects.filter(domain=domain, proxmox_vm_id=vmid).first()
+        proxbox_vm = ProxmoxVM.objects.filter(domain=domain, name=proxmox_vm.name).first()
 
     if proxbox_vm is None:
         proxbox_vm = ProxmoxVM(
@@ -59,6 +67,7 @@ def upsert_proxbox_item(proxmox_vm) -> ProxmoxVM:
         )
         proxbox_vm.save()
     if proxbox_vm:
+        proxbox_vm.name = proxmox_vm.name
         proxbox_vm.instance_data = proxmox_vm.data,
         proxbox_vm.config_data = config
         proxbox_vm.url = 'https://{}:{}/#v1:0:={}%2F{} '.format(domain, port, vm_type, vmid)
@@ -91,8 +100,10 @@ def delete_proxbox_vm_sql(proxbox_id):
                            [proxbox_id])
         return True
     except Exception as e:
-        print(e)
+        # logger.exception(e)
+        # traceback.print_exc()
         print("Error: delete_proxbox_vm_sql - {}".format(e))
+        print(e)
         return False
 
 
@@ -138,6 +149,8 @@ def get_proxmox_config(vm):
                 config = proxmox.nodes(node).lxc(vmid).config.get()
     except Exception as e:
         print("Error: get_promox_config-1 - {}".format(e))
+        # logger.exception(e)
+        # traceback.print_exc()
         print(e)
         config = None
     return config, proxbox_vm, domain, node, vmid, type

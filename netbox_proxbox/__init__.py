@@ -1,6 +1,8 @@
 # Netbox plugin related import
-from extras.plugins import PluginConfig
-
+try:
+    from extras.plugins import PluginConfig
+except Exception as e:
+    from netbox.plugins import PluginConfig
 
 class ProxboxConfig(PluginConfig):
     name = "netbox_proxbox"

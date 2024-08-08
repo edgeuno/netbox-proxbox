@@ -112,7 +112,7 @@ class ProxmoxVirtualMachine:
             vm_value = ProxmoxVirtualMachine.instance_from_object(vm, cluster, node)
             # await vm_value.async_add_vm_to_netbox()
             runner.append(vm_value.async_add_vm_to_netbox())
-            if len(runner) > 9:
+            if len(runner) > 5:
                 r1 = await asyncio.gather(*runner, return_exceptions=True)
                 vm_totals = vm_totals + r1
                 runner = []
@@ -137,22 +137,34 @@ class ProxmoxVirtualMachine:
         # Get all the vm's to be deleted
         limit = 100
         count = await async_get_total_count_by_job(job_id)
+        print('[{:%H:%M:%S}] Cleaning {} jobs...'.format(timezone.now(), count))
         # if there are no task just finish the process
         if count < 1:
             return
 
         runner = []
         pages = math.ceil(count / limit)
+        print('[{:%H:%M:%S}] Total pages: {}'.format(timezone.now(), pages))
         for n in range(pages):
             # Get the vms to be deleted
+            print('[{:%H:%M:%S}] Getting the list of VMs...'.format(timezone.now()))
             try:
                 results = await async_get_vm_to_delete_by_job(job_id, n + 1, limit)
-
+                print('[{:%H:%M:%S}] Got for this page {}'.format(timezone.now(), len(results)))
                 if results is None or len(results) < 1:
                     continue
 
                 for vm in results:
                     runner.append(async_delete_vm(vm, job_id))
+                    # print('[{:%H:%M:%S}] Deleting VM...{}'.format(timezone.now(), vm))
+                    # try:
+                    #     r = await async_delete_vm(vm, job_id)
+                    #     if isinstance(r, Exception):
+                    #         continue
+                    #     print('[{:%H:%M:%S}] Adding to output...{}'.format(timezone.now(), r))
+                    #     output.append(r)
+                    # except Exception as e1:
+                    #     print(e1)
 
             except Exception as e:
                 print(e)
