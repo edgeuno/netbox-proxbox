@@ -276,7 +276,7 @@ def contact_parse_set(test_str, name):
 
 def set_assign_contact(test_str, name, object_id, content_type):
     if content_type is None:
-        content_type = content_type = ContentType.objects.filter(app_label="tenancy", model="tenant").first()
+        content_type = ContentType.objects.filter(app_label="tenancy", model="tenant").first()
 
     contact = None
     contact_role = None
