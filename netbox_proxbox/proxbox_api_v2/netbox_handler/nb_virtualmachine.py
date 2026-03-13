@@ -11,7 +11,8 @@ import traceback
 # logger = logging.getLogger(__name__)
 
 try:
-    from django.db import connection, transaction
+    from django.db import connection, transaction, IntegrityError
+    from django.db.models import Count
     from django.template.defaultfilters import slugify
     from virtualization.models import VirtualMachine, VMInterface
     from tenancy.models import Tenant, TenantGroup, Contact, ContactRole, ContactAssignment
@@ -38,6 +39,43 @@ except Exception as e:
 
 ipv4_regex = r"\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}(\/\d{1,3})?"
 ipv6_regex = r"([a-zA-Z0-9]{1,4}(:[a-zA-Z0-9]{0,4})?(:[a-zA-Z0-9]{0,4})?(:[a-zA-Z0-9]{0,4})?(:[a-zA-Z0-9]{0,4})?(:[a-zA-Z0-9]{0,4})?(:[a-zA-Z0-9]{0,4})?(:[a-zA-Z0-9]{0,4})?(:[a-zA-Z0-9]{0,4})?(:[a-zA-Z0-9]{0,4})?(:[a-zA-Z0-9]{0,4})?(:[a-zA-Z0-9]{0,4})?(:[a-zA-Z0-9]{0,4})?(:[a-zA-Z0-9]{0,4})?:([a-zA-Z0-9]{0,4})?:([a-zA-Z0-9]{0,4})?(\.\d{1,3}\.\d{1,3}\.\d{1,3})?(\/\d{1,3})?)"
+
+
+def dedupe_vm_tagged_items(netbox_vm, tag_id=None):
+    try:
+        through_model = netbox_vm.tags.through
+        field_names = {f.name for f in through_model._meta.get_fields()}
+
+        filter_kwargs = {"object_id": netbox_vm.id}
+        vm_content_type = ContentType.objects.get_for_model(netbox_vm, for_concrete_model=False)
+        if "object_type" in field_names:
+            filter_kwargs["object_type_id"] = vm_content_type.id
+        elif "content_type" in field_names:
+            filter_kwargs["content_type_id"] = vm_content_type.id
+
+        if tag_id is not None:
+            filter_kwargs["tag_id"] = tag_id
+
+        duplicates = (
+            through_model.objects
+            .filter(**filter_kwargs)
+            .values("tag_id")
+            .annotate(total=Count("pk"))
+            .filter(total__gt=1)
+        )
+
+        removed = 0
+        for dup in duplicates:
+            tagged_items = through_model.objects.filter(**filter_kwargs, tag_id=dup["tag_id"]).order_by("pk")
+            duplicate_ids = list(tagged_items.values_list("pk", flat=True))[1:]
+            if duplicate_ids:
+                removed += through_model.objects.filter(pk__in=duplicate_ids).delete()[0]
+
+        return removed
+    except Exception as e:
+        print("Error: dedupe_vm_tagged_items - {}".format(e))
+        print(e)
+        return 0
 
 
 def base_local_context_data(netbox_vm, proxmox_vm):
@@ -151,6 +189,18 @@ def upsert_tenant_group(tenant, netbox_vm):
     return tenant
 
 
+def get_vm_by_unique_name_cluster_tenant(netbox_vm, tenant_id):
+    if netbox_vm is None or tenant_id is None:
+        return None
+    if netbox_vm.name is None or netbox_vm.cluster_id is None:
+        return None
+    return VirtualMachine.objects.filter(
+        name__iexact=netbox_vm.name,
+        cluster_id=netbox_vm.cluster_id,
+        tenant_id=tenant_id
+    ).exclude(id=netbox_vm.id).first()
+
+
 def default_tenant(netbox_vm):
     has_string = False
     try:
@@ -175,9 +225,18 @@ def default_tenant(netbox_vm):
                 nb_tenant.save()
             if nb_tenant is not None:
                 nb_tenant = upsert_tenant_group(nb_tenant, netbox_vm)
+                vm_conflict = get_vm_by_unique_name_cluster_tenant(netbox_vm, nb_tenant.id)
+                if vm_conflict is not None:
+                    return vm_conflict
                 netbox_vm.tenant_id = nb_tenant.id
                 netbox_vm.tenant = nb_tenant
-                netbox_vm.save()
+                try:
+                    netbox_vm.save()
+                except IntegrityError:
+                    vm_conflict = get_vm_by_unique_name_cluster_tenant(netbox_vm, nb_tenant.id)
+                    if vm_conflict is not None:
+                        return vm_conflict
+                    raise
 
     return netbox_vm
 
@@ -285,11 +344,18 @@ def set_assign_contact(test_str, name, object_id, content_type):
         contact, contact_role = contact_parse_set(test_str, name)
         if not (contact and contact_role):
             return contact, contact_role, contact_assigment
+        field_names = [f.name for f in ContactAssignment._meta.get_fields()]
+        object_type_filter = {}
+        if "object_type" in field_names:
+            object_type_filter["object_type_id"] = content_type.id
+        elif "content_type" in field_names:
+            object_type_filter["content_type_id"] = content_type.id
+
         contact_assigment = ContactAssignment.objects.filter(
             object_id=object_id,
             contact_id=contact.id,
-            content_type_id=content_type.id,
-            role_id=contact_role.id
+            role_id=contact_role.id,
+            **object_type_filter
         ).first()
         if contact_assigment is None:
             # print('[OK] Assigning contact {} to tenant {}'.format(contact.name, name))
@@ -297,12 +363,15 @@ def set_assign_contact(test_str, name, object_id, content_type):
             contact_assigment = ContactAssignment(
                 object_id=object_id,
                 contact=contact,
-                content_type_id=content_type.id,
                 contact_id=contact.id,
                 role=contact_role,
                 role_id=contact_role.id,
                 priority="primary"
             )
+            if "object_type" in field_names:
+                contact_assigment.object_type_id = content_type.id
+            elif "content_type" in field_names:
+                contact_assigment.content_type_id = content_type.id
             contact_assigment.save()
             # print('[OK] Contact assigned {} to tenant {}'.format(contact.name, name))
             # assign_contact_to_tenant(tenant, contact, contact_role, content_type)
@@ -347,11 +416,20 @@ def set_tenant(netbox_vm, observation):
     if tenant is None:
         return netbox_vm
     tenant = upsert_tenant_group(tenant, netbox_vm)
+    vm_conflict = get_vm_by_unique_name_cluster_tenant(netbox_vm, tenant.id)
+    if vm_conflict is not None:
+        return vm_conflict
 
     netbox_vm.tenant_id = tenant.id
     netbox_vm.tenant = tenant
 
-    netbox_vm.save()
+    try:
+        netbox_vm.save()
+    except IntegrityError:
+        vm_conflict = get_vm_by_unique_name_cluster_tenant(netbox_vm, tenant.id)
+        if vm_conflict is not None:
+            return vm_conflict
+        raise
 
     return netbox_vm
 
@@ -666,14 +744,15 @@ def base_add_ip(netbox_vm, proxmox_vm, config=None):
 
 def upsert_netbox_vm(proxmox_vm, config=None):
     cluster_name = proxmox_vm.cluster.name
-    vm_name = proxmox_vm.name
+    vm_name = proxmox_vm.name.strip() if isinstance(proxmox_vm.name, str) else proxmox_vm.name
     vmid = proxmox_vm.vmid
     node = proxmox_vm.node
+    cluster_id = proxmox_vm.cluster.nb_cluster.id
 
-    netbox_vm = VirtualMachine.objects.filter(cluster__name=cluster_name, custom_field_data__proxmox_id=vmid,
+    netbox_vm = VirtualMachine.objects.filter(cluster_id=cluster_id, custom_field_data__proxmox_id=vmid,
                                               custom_field_data__proxmox_node=node).first()
     if netbox_vm is None:
-        netbox_vm = VirtualMachine.objects.filter(cluster__name=cluster_name, name=vm_name).first()
+        netbox_vm = VirtualMachine.objects.filter(cluster_id=cluster_id, name__iexact=vm_name).first()
 
     status = 'offline'
     if proxmox_vm.status == 'running':
@@ -711,9 +790,28 @@ def upsert_netbox_vm(proxmox_vm, config=None):
         # Update all the machine resources if necesary
         netbox_vm = base_resources(netbox_vm, proxmox_vm)
         # Add the tags
-        c_tag = tag()
-        netbox_vm.tags.add(c_tag)
-        netbox_vm = base_tag(netbox_vm)
+        try:
+            c_tag = tag()
+            removed = dedupe_vm_tagged_items(netbox_vm, c_tag.id)
+            if removed > 0:
+                print("[WARN] Removed {} duplicate tag links before sync for VM {}.".format(removed, netbox_vm.name))
+            netbox_vm.tags.add(c_tag)
+            netbox_vm = base_tag(netbox_vm)
+        except Exception as e:
+            print("Error: upsert_netbox_vm-tag - {}".format(e))
+            print(e)
+            removed = dedupe_vm_tagged_items(netbox_vm)
+            if removed > 0:
+                print("[WARN] Removed {} duplicate tag links and retrying tag update for VM {}.".format(
+                    removed, netbox_vm.name
+                ))
+                try:
+                    c_tag = tag()
+                    netbox_vm.tags.add(c_tag)
+                    netbox_vm = base_tag(netbox_vm)
+                except Exception as e2:
+                    print("Error: upsert_netbox_vm-tag-retry - {}".format(e2))
+                    print(e2)
 
         # Update tenat base on the configuration of the vm
         netbox_vm = base_add_configuration(netbox_vm, proxmox_vm, config)

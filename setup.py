@@ -23,7 +23,7 @@ requires = [
     'requests>=2',
     'pynetbox>=5',
     'paramiko>=2',
-    'proxmoxer>=1'
+    'proxmoxer>=1',
     'pytz'
 ]
 
