@@ -342,39 +342,15 @@ def set_assign_contact(test_str, name, object_id, content_type):
     contact_assigment = None
     try:
         contact, contact_role = contact_parse_set(test_str, name)
-        if not (contact and contact_role):
+        if not (contact and contact_role and content_type):
             return contact, contact_role, contact_assigment
-        field_names = [f.name for f in ContactAssignment._meta.get_fields()]
-        object_type_filter = {}
-        if "object_type" in field_names:
-            object_type_filter["object_type_id"] = content_type.id
-        elif "content_type" in field_names:
-            object_type_filter["content_type_id"] = content_type.id
-
-        contact_assigment = ContactAssignment.objects.filter(
+        contact_assigment, _ = ContactAssignment.objects.get_or_create(
             object_id=object_id,
+            object_type_id=content_type.id,
             contact_id=contact.id,
             role_id=contact_role.id,
-            **object_type_filter
-        ).first()
-        if contact_assigment is None:
-            # print('[OK] Assigning contact {} to tenant {}'.format(contact.name, name))
-
-            contact_assigment = ContactAssignment(
-                object_id=object_id,
-                contact=contact,
-                contact_id=contact.id,
-                role=contact_role,
-                role_id=contact_role.id,
-                priority="primary"
-            )
-            if "object_type" in field_names:
-                contact_assigment.object_type_id = content_type.id
-            elif "content_type" in field_names:
-                contact_assigment.content_type_id = content_type.id
-            contact_assigment.save()
-            # print('[OK] Contact assigned {} to tenant {}'.format(contact.name, name))
-            # assign_contact_to_tenant(tenant, contact, contact_role, content_type)
+            defaults={'priority': 'primary'}
+        )
     except Exception as e:
         print("Error: set_assign_contact - {}".format(e))
         # logger.exception(e)

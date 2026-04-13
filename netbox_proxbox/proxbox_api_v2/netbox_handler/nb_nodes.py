@@ -333,29 +333,42 @@ def node_full_update(netbox_node, proxmox_node):
 def upsert_nodes(proxmox_node):
     netbox_node = None
     was_created = False
+    # Get the if the device is going to be created if not found
+    create_device_when_not_found = getattr(
+        proxmox_node.proxbox_session,
+        "create_device_when_not_found",
+        True
+    )
     # Search netbox using VM name
     if proxmox_node.cidr:
         netbox_node = find_node_by_ip(proxmox_node.cidr)
     if netbox_node is None:
         netbox_node = Device.objects.filter(name=proxmox_node.name).first()
 
-    # Search node on Netbox with Proxmox node name gotten
-    if netbox_node is None:
-        # If node does not exist, create it.
-        netbox_node = create_node(proxmox_node)
-        was_created = netbox_node is not None
-        if was_created:
-            print("[OK] Node created! -> {}".format(proxmox_node.name))
+    if create_device_when_not_found:
+        # Search node on Netbox with Proxmox node name gotten
+        if netbox_node is None:
+            # If node does not exist, create it.
+            netbox_node = create_node(proxmox_node)
+            was_created = netbox_node is not None
+            if was_created:
+                print("[OK] Node created! -> {}".format(proxmox_node.name))
+            else:
+                print('[ERROR] Something went wrong when creating the node.-> {}'.format(proxmox_node.name))
+                return None
+
+        if netbox_node is not None:
+            # Update rest of configuration
+            netbox_node = node_full_update(netbox_node, proxmox_node)
+            # Analyze if update was successful
+            print('[OK] NODE {} updated.'.format(proxmox_node.name))
         else:
             print('[ERROR] Something went wrong when creating the node.-> {}'.format(proxmox_node.name))
-            return None
-
-    if netbox_node is not None:
-        # Update rest of configuration
-        netbox_node = node_full_update(netbox_node, proxmox_node)
-        # Analyze if update was successful
-        print('[OK] NODE {} updated.'.format(proxmox_node.name))
     else:
-        print('[ERROR] Something went wrong when creating the node.-> {}'.format(proxmox_node.name))
+        print(
+            "[INFO] Skipping device sync for node {} because netbox.create_device_when_not_found is disabled.".format(
+                proxmox_node.name
+            )
+        )
 
     return netbox_node

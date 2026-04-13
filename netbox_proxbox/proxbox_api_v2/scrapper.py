@@ -37,7 +37,9 @@ class Scrapper:
 
         # Get all clusters that didn't fail
         for cluster in results:
-            if isinstance(cluster, Exception):
+            if isinstance(cluster, Exception) or cluster is None:
+                continue
+            if getattr(cluster, "data", None) is None:
                 continue
             cluster.job_id = job_id
             clusters.append(cluster)
@@ -49,6 +51,8 @@ class Scrapper:
         node_runner = []
         for cluster in clusters:
             if isinstance(cluster, Exception):
+                continue
+            if getattr(cluster, "data", None) is None:
                 continue
             nodes = ProxmoxNodes.get_nodes_from_cluster(cluster)
             for node in nodes:

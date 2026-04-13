@@ -1,4 +1,5 @@
 import pytz
+import time
 from django.db import connection, transaction
 from datetime import datetime
 
@@ -38,17 +39,23 @@ def upsert_proxbox_item(proxmox_vm) -> ProxmoxVM:
 
     config = None
     vm_type = proxmox_vm.type
-    try:
-        if vm_type == 'qemu':
-            config = proxmox_session.session.nodes(node).qemu(vmid).config.get()
-        if vm_type == 'lxc':
-            config = proxmox_session.session.nodes(node).lxc(vmid).config.get()
-    except Exception as e:
-        print("Error: set_get_proxbox_item-1 - {}".format(e))
-        # logger.exception(e)
-        # traceback.print_exc()
-        print(e)
-        config = None
+    max_retries = 3
+    for attempt in range(1, max_retries + 1):
+        try:
+            if vm_type == 'qemu':
+                config = proxmox_session.session.nodes(node).qemu(vmid).config.get()
+            elif vm_type == 'lxc':
+                config = proxmox_session.session.nodes(node).lxc(vmid).config.get()
+            break
+        except Exception as e:
+            config = None
+            if attempt == max_retries:
+                print(
+                    "Error: set_get_proxbox_item-1 - unable to get config for vm {} at {} "
+                    "after {} attempts: {}".format(proxmox_vm.name, domain, max_retries, e)
+                )
+            else:
+                time.sleep(2)
 
     vcpus, memory_Mb, disk_Gb = get_resources(proxmox_vm)
 
@@ -148,10 +155,9 @@ def get_proxmox_config(vm):
             if type == 'lxc':
                 config = proxmox.nodes(node).lxc(vmid).config.get()
     except Exception as e:
-        print("Error: get_promox_config-1 - {}".format(e))
+        print("Error: get_proxmox_config-1 - {} - Domain: {}".format(e, domain))
         # logger.exception(e)
         # traceback.print_exc()
-        print(e)
         config = None
     return config, proxbox_vm, domain, node, vmid, type
 
