@@ -1,18 +1,12 @@
-import pytz
 import time
-from django.db import connection, transaction
 from datetime import datetime
+
+import pytz
+from django.db import connection
 
 from .nb_virtualmachine import upsert_netbox_vm
 from ..plugins_config import PROXMOX_SESSIONS
-
 from ...models import ProxmoxVM
-
-# import logging
-import traceback
-
-# logging.basicConfig(level=logging.DEBUG)
-# logger = logging.getLogger(__name__)
 
 
 def get_resources(proxmox_vm):
@@ -28,6 +22,23 @@ def get_resources(proxmox_vm):
     disk_Gb = int(disk_Gb / 1000000000)
 
     return vcpus, memory_Mb, disk_Gb
+
+
+def save_proxbox_vm_with_optional_device(proxbox_vm):
+    try:
+        proxbox_vm.save()
+    except Exception as e:
+        if getattr(proxbox_vm, "device_id", None) is None:
+            raise
+        print(
+            "Error: save_proxbox_vm_with_optional_device - retrying without device for {}: {}".format(
+                proxbox_vm.name, e
+            )
+        )
+        proxbox_vm.device = None
+        proxbox_vm.device_id = None
+        proxbox_vm.save()
+    return proxbox_vm
 
 
 def upsert_proxbox_item(proxmox_vm) -> ProxmoxVM:
@@ -74,6 +85,7 @@ def upsert_proxbox_item(proxmox_vm) -> ProxmoxVM:
         )
         proxbox_vm.save()
     if proxbox_vm:
+        netbox_device = getattr(getattr(proxmox_vm, "proxmox_node", None), "nb_node", None)
         proxbox_vm.name = proxmox_vm.name
         proxbox_vm.instance_data = proxmox_vm.data
         proxbox_vm.config_data = config
@@ -88,14 +100,16 @@ def upsert_proxbox_item(proxmox_vm) -> ProxmoxVM:
         proxbox_vm.disk = disk_Gb
         proxbox_vm.proxmox_vm_id = vmid
         proxbox_vm.domain = domain
+        proxbox_vm.device = netbox_device
+        proxbox_vm.device_id = getattr(netbox_device, "id", None)
 
-        proxbox_vm.save()
+        proxbox_vm = save_proxbox_vm_with_optional_device(proxbox_vm)
 
         netbox_vm = upsert_netbox_vm(proxmox_vm, config)
         proxbox_vm.virtual_machine_id = netbox_vm.id
         proxbox_vm.virtual_machine = netbox_vm
 
-        proxbox_vm.save()
+        proxbox_vm = save_proxbox_vm_with_optional_device(proxbox_vm)
 
     return proxbox_vm
 
