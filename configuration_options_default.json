@@ -19,6 +19,7 @@
     "site_id": 0,
     "tenant_name": "EdgeUno",
     "tenant_regex_validator": "^prefix-",
-    "tenant_description": "Nice Description for the tenant"
+    "tenant_description": "Nice Description for the tenant",
+    "create_device_when_not_found": false
   }
 }

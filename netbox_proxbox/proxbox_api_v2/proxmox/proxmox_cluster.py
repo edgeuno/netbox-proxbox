@@ -1,5 +1,6 @@
 from dataclasses import dataclass, field
 import asyncio
+import time
 
 from ..netbox_handler.nb_cluster import upsert_cluster
 
@@ -44,13 +45,24 @@ class ProxmoxCluster:
             self.proxbox_session = self.reset_proxbox_session()
         if self.proxbox_session is None:
             return
-        result = self.proxbox_session.session.cluster.status.get()
-        cluster = result[0]
-        self.data = result
-        self.name = cluster.get("name", None)
-        self.quorate = cluster.get("quorate", None)
-        self.version = cluster.get("version", None)
-        return self
+        max_retries = 3
+        for attempt in range(1, max_retries + 1):
+            try:
+                result = self.proxbox_session.session.cluster.status.get()
+                cluster = result[0]
+                self.data = result
+                self.name = cluster.get("name", None)
+                self.quorate = cluster.get("quorate", None)
+                self.version = cluster.get("version", None)
+                return self
+            except Exception as e:
+                if attempt == max_retries:
+                    print(
+                        "Error: complete_cluster - unable to read cluster status for {} "
+                        "after {} attempts: {}".format(self.domain, max_retries, e)
+                    )
+                    return None
+                time.sleep(2)
 
     async def async_add_cluster_to_netbox(self):
         return await asyncio.to_thread(self.add_cluster_to_netbox)
@@ -75,7 +87,9 @@ class ProxmoxCluster:
         if cluster.proxbox_session is None:
             raise Exception("The cluster wasn't correctly initialize")
         # Compleate the information for the cluster
-        cluster.complete_cluster()
+        complete_result = cluster.complete_cluster()
+        if complete_result is None or cluster.data is None:
+            raise Exception("Unable to load cluster data for domain {}".format(domain))
         # Upsert the cluster in netbox
         cluster.add_cluster_to_netbox()
 

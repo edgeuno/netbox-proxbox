@@ -1,17 +1,12 @@
-import pytz
-from django.db import connection, transaction
+import time
 from datetime import datetime
+
+import pytz
+from django.db import connection
 
 from .nb_virtualmachine import upsert_netbox_vm
 from ..plugins_config import PROXMOX_SESSIONS
-
 from ...models import ProxmoxVM
-
-# import logging
-import traceback
-
-# logging.basicConfig(level=logging.DEBUG)
-# logger = logging.getLogger(__name__)
 
 
 def get_resources(proxmox_vm):
@@ -29,6 +24,23 @@ def get_resources(proxmox_vm):
     return vcpus, memory_Mb, disk_Gb
 
 
+def save_proxbox_vm_with_optional_device(proxbox_vm):
+    try:
+        proxbox_vm.save()
+    except Exception as e:
+        if getattr(proxbox_vm, "device_id", None) is None:
+            raise
+        print(
+            "Error: save_proxbox_vm_with_optional_device - retrying without device for {}: {}".format(
+                proxbox_vm.name, e
+            )
+        )
+        proxbox_vm.device = None
+        proxbox_vm.device_id = None
+        proxbox_vm.save()
+    return proxbox_vm
+
+
 def upsert_proxbox_item(proxmox_vm) -> ProxmoxVM:
     proxmox_session = proxmox_vm.proxbox_session
     port = proxmox_session.http_port if proxmox_session.http_port else 8006
@@ -38,17 +50,23 @@ def upsert_proxbox_item(proxmox_vm) -> ProxmoxVM:
 
     config = None
     vm_type = proxmox_vm.type
-    try:
-        if vm_type == 'qemu':
-            config = proxmox_session.session.nodes(node).qemu(vmid).config.get()
-        if vm_type == 'lxc':
-            config = proxmox_session.session.nodes(node).lxc(vmid).config.get()
-    except Exception as e:
-        print("Error: set_get_proxbox_item-1 - {}".format(e))
-        # logger.exception(e)
-        # traceback.print_exc()
-        print(e)
-        config = None
+    max_retries = 3
+    for attempt in range(1, max_retries + 1):
+        try:
+            if vm_type == 'qemu':
+                config = proxmox_session.session.nodes(node).qemu(vmid).config.get()
+            elif vm_type == 'lxc':
+                config = proxmox_session.session.nodes(node).lxc(vmid).config.get()
+            break
+        except Exception as e:
+            config = None
+            if attempt == max_retries:
+                print(
+                    "Error: set_get_proxbox_item-1 - unable to get config for vm {} at {} "
+                    "after {} attempts: {}".format(proxmox_vm.name, domain, max_retries, e)
+                )
+            else:
+                time.sleep(2)
 
     vcpus, memory_Mb, disk_Gb = get_resources(proxmox_vm)
 
@@ -67,8 +85,9 @@ def upsert_proxbox_item(proxmox_vm) -> ProxmoxVM:
         )
         proxbox_vm.save()
     if proxbox_vm:
+        netbox_device = getattr(getattr(proxmox_vm, "proxmox_node", None), "nb_node", None)
         proxbox_vm.name = proxmox_vm.name
-        proxbox_vm.instance_data = proxmox_vm.data,
+        proxbox_vm.instance_data = proxmox_vm.data
         proxbox_vm.config_data = config
         proxbox_vm.url = 'https://{}:{}/#v1:0:={}%2F{} '.format(domain, port, vm_type, vmid)
         proxbox_vm.latest_job = proxmox_vm.cluster.job_id
@@ -81,14 +100,16 @@ def upsert_proxbox_item(proxmox_vm) -> ProxmoxVM:
         proxbox_vm.disk = disk_Gb
         proxbox_vm.proxmox_vm_id = vmid
         proxbox_vm.domain = domain
+        proxbox_vm.device = netbox_device
+        proxbox_vm.device_id = getattr(netbox_device, "id", None)
 
-        proxbox_vm.save()
+        proxbox_vm = save_proxbox_vm_with_optional_device(proxbox_vm)
 
         netbox_vm = upsert_netbox_vm(proxmox_vm, config)
         proxbox_vm.virtual_machine_id = netbox_vm.id
         proxbox_vm.virtual_machine = netbox_vm
 
-        proxbox_vm.save()
+        proxbox_vm = save_proxbox_vm_with_optional_device(proxbox_vm)
 
     return proxbox_vm
 
@@ -148,10 +169,9 @@ def get_proxmox_config(vm):
             if type == 'lxc':
                 config = proxmox.nodes(node).lxc(vmid).config.get()
     except Exception as e:
-        print("Error: get_promox_config-1 - {}".format(e))
+        print("Error: get_proxmox_config-1 - {} - Domain: {}".format(e, domain))
         # logger.exception(e)
         # traceback.print_exc()
-        print(e)
         config = None
     return config, proxbox_vm, domain, node, vmid, type
 
