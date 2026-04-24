@@ -1,0 +1,24 @@
+name: netbox-proxbox
+
+services:
+  proxbox-runner:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        NETBOX_VERSION: ${NETBOX_VERSION:-4.5.8}
+    image: netbox-proxbox:${NETBOX_VERSION:-4.5.8}
+    environment:
+      TZ: ${TZ:-UTC}
+      PROXBOX_CONFIG_FILE: /opt/netbox/runtime/scanner.env
+    command:
+      - /usr/local/bin/scanner-runner.sh
+    restart: unless-stopped
+    volumes:
+      - ./runtime/configuration.py:/opt/netbox/netbox/netbox/netbox/configuration.py:ro
+      - ./runtime/scanner.env:/opt/netbox/runtime/scanner.env:ro
+      - ./configuration_options.json:/opt/netbox/plugins/netbox-proxbox/configuration_options.json:ro
+      - netbox-media:/opt/netbox/netbox/media
+
+volumes:
+  netbox-media:

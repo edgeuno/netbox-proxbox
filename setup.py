@@ -23,7 +23,7 @@ requires = [
     'requests>=2',
     'pynetbox>=5',
     'paramiko>=2',
-    'proxmoxer>=1'
+    'proxmoxer>=1',
     'pytz'
 ]
 
@@ -37,7 +37,7 @@ dev_requires = [
 
 setup(
     name="netbox-proxbox",
-    version="0.0.12",
+    version="0.1.0",
     author="Javier Alejandro Ruiz",  # Original Autor Emerson Felipe
     author_email="javier.ruiz@edgeuno.com",  # Original Autor Email emerson.felipe@nmultifibra.com.br
     description="Integration between Proxmox and Netbox",

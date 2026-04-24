@@ -1,0 +1,42 @@
+ALLOWED_HOSTS = ["*"]
+SECRET_KEY = "change-me-to-a-long-random-value"
+TIME_ZONE = "UTC"
+
+DATABASE = {
+    "NAME": "netbox",
+    "USER": "netbox",
+    "PASSWORD": "change-me",
+    "HOST": "postgres.example.internal",
+    "PORT": "5432",
+    "OPTIONS": {"sslmode": "prefer"},
+}
+
+REDIS = {
+    "tasks": {
+        "HOST": "redis",
+        "PORT": 6379,
+        "DATABASE": 0,
+        "PASSWORD": "",
+        "USERNAME": "",
+        "SSL": False,
+        "INSECURE_SKIP_TLS_VERIFY": False,
+    },
+    "caching": {
+        "HOST": "redis",
+        "PORT": 6379,
+        "DATABASE": 1,
+        "PASSWORD": "",
+        "USERNAME": "",
+        "SSL": False,
+        "INSECURE_SKIP_TLS_VERIFY": False,
+    },
+}
+
+PLUGINS = ["netbox_proxbox"]
+PLUGINS_CONFIG = {
+    "netbox_proxbox": {
+        "proxmox": {
+            "filePath": "/opt/netbox/plugins/netbox-proxbox/configuration_options.json",
+        }
+    }
+}

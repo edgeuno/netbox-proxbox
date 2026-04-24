@@ -31,6 +31,9 @@ def upsert_site(**kwargs):
         site = Site.objects.filter(name=site_name).first()
         if site:
             return site
+        site = Site.objects.filter(name__icontains=site_name).order_by('id').first()
+        if site:
+            return site
 
     if not isinstance(site_id, int):
         return 'Site ID must be INTEGER. Netbox PLUGINS_CONFIG is configured incorrectly.'

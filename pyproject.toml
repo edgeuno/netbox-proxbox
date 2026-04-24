@@ -13,6 +13,8 @@ packages = [
 python = "^3.8"
 pynetbox = "^7.0.1"
 proxmoxer = "^2.0.1"
+requests = ">=2"
+pytz = "*"
 
 [tool.poetry.dev-dependencies]
 bandit = "^1.7.0"

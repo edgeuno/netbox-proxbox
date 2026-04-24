@@ -24,6 +24,7 @@ class ProxboxSession:
     virtualmachine_role_name: str = "Proxbox Basic Role",
     node_role_id: int = 0,
     site_id: int = 0,
+    create_device_when_not_found: bool = True
     tenant_name: str = "EdgeUno",
     tenant_regex_validator: str = "^e1-",
     tenant_description: str = "The vm belongs to Edgeuno"
@@ -62,6 +63,7 @@ class ProxboxSession:
         virtualmachine_role_name = dictionary.get("virtualmachine_role_name", None)
         node_role_id = dictionary.get("node_role_id", None)
         site_id = dictionary.get("site_id", None)
+        create_device_when_not_found = dictionary.get("create_device_when_not_found", True)
         tenant_name = dictionary.get("tenant_name", None)
         tenant_regex_validator = dictionary.get("tenant_regex_validator", None)
         tenant_description = dictionary.get("tenant_description", None)
@@ -80,6 +82,7 @@ class ProxboxSession:
             virtualmachine_role_name=virtualmachine_role_name,
             node_role_id=node_role_id,
             site_id=site_id,
+            create_device_when_not_found=create_device_when_not_found,
             tenant_name=tenant_name,
             tenant_regex_validator=tenant_regex_validator,
             tenant_description=tenant_description,
@@ -116,6 +119,7 @@ class ProxboxSession:
         proxmox_item["virtualmachine_role_name"] = netbox_item.get("virtualmachine_role_name", None)
         proxmox_item["node_role_id"] = netbox_item.get("node_role_id", None)
         proxmox_item["site_id"] = netbox_item.get("site_id", None)
+        proxmox_item["create_device_when_not_found"] = netbox_item.get("create_device_when_not_found", True)
         proxmox_item["tenant_name"] = netbox_item.get("tenant_name", None)
         proxmox_item["tenant_regex_validator"] = netbox_item.get("tenant_regex_validator", None)
         proxmox_item["tenant_description"] = netbox_item.get("tenant_description", None)
