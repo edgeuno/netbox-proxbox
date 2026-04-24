@@ -82,6 +82,7 @@ The following table shows the Netbox and Proxmox versions compatible (tested) wi
 - [1.1. Install package](#11-install-package)
   - ~~[1.1.1. Using pip (production use)](#111-using-pip-production-use---not-working-yet)~~
   - [1.1.2. Using git (development use)](#112-using-git-development-use)
+  - [1.1.3. Using docker (standalone execution)](#113-using-docker-standalone-execution)
 - [1.2. Enable the Plugin](#12-enable-the-plugin)
 - [1.3. Configure Plugin](#13-configure-plugin)
   - [1.3.1. Change Netbox 'configuration.py' to add PLUGIN parameters](#131-change-netbox-configurationpy-to-add-plugin-parameters)
@@ -89,6 +90,7 @@ The following table shows the Netbox and Proxmox versions compatible (tested) wi
 - [1.4. Run Database Migrations](#14-run-database-migrations)
 - [1.5 Restart WSGI Service](#15-restart-wsgi-service)
 - [1.6 Running the script](#16-running-the-script)
+  - [1.6.1 Running with docker compose](#161-running-with-docker-compose)
 - ~~[1.6. Queue Initialization](#16-queue-initialization)~~
 - ~~[1.7. Service](#17-service)~~
 
@@ -161,6 +163,50 @@ python3 setup.py develop
 Install netbox-proxbox for production
 ```
 python3 setup.py install
+```
+
+#### 1.1.3. Using docker (standalone execution)
+**OBS:** This method is useful when you want to run the plugin without starting a full Netbox service locally.
+The container downloads Netbox only for the runtime environment, but it connects to the same PostgreSQL and Redis used by your current Netbox installation.
+
+Move to the plugin root folder
+```
+cd /opt/netbox/plugins/netbox-proxbox
+```
+
+Create the runtime files from the examples
+```shell
+cp runtime/configuration.py.example runtime/configuration.py
+cp runtime/scanner.env.example runtime/scanner.env
+cp configuration_options_default.json configuration_options.json
+```
+
+Edit the files before running:
+- `runtime/configuration.py`
+  - Netbox runtime configuration used by the container
+  - Database connection
+  - Redis connection
+  - `PLUGINS = ['netbox_proxbox']`
+  - `PLUGINS_CONFIG['netbox_proxbox']['proxmox']['filePath']`
+- `runtime/scanner.env`
+  - Execution mode for the standalone runner
+  - Interval / cron settings
+- `configuration_options.json`
+  - Proxmox cluster list and plugin specific Netbox values
+
+To execute one synchronization using docker compose run
+```shell
+docker compose -f docker-compose-single-exec.yml up --build
+```
+
+To keep the runner active using the scheduler run
+```shell
+docker compose -f docker-compose.yaml up --build -d
+```
+
+To stop the scheduled runner use
+```shell
+docker compose -f docker-compose.yaml down
 ```
 
 ---
@@ -237,6 +283,45 @@ and copy the following line to run the script every hour and to set the output t
 ```
 ## Proxbox runner
 0 * * * * /usr/bin/bash -l /opt/netbox/plugins/netbox-proxbox/proxbox_runner.sh > /opt/netbox/plugins/netbox-proxbox/proxbox_runner.txt
+```
+
+#### 1.6.1 Running with docker compose
+
+If you are using the standalone docker runtime, the command below executes the synchronization once and then exits
+```shell
+docker compose -f docker-compose-single-exec.yml up --build
+```
+
+If you want a container that stays running and executes the synchronization based on `runtime/scanner.env`, use
+```shell
+docker compose -f docker-compose.yaml up --build -d
+```
+
+The values in `runtime/scanner.env` are:
+- `PROXBOX_MODE=off`
+- `PROXBOX_MODE=continuous`
+- `PROXBOX_MODE=interval`
+- `PROXBOX_MODE=cron`
+
+When using `interval` set:
+```shell
+PROXBOX_INTERVAL_SECONDS=900
+```
+
+When using `cron` set:
+```shell
+PROXBOX_CRON_EXPRESSION=*/15 * * * *
+```
+
+When using `continuous` or `interval` you may also set:
+```shell
+PROXBOX_RESTART_DELAY_SECONDS=0
+```
+
+To stop and remove the standalone containers run
+```shell
+docker compose -f docker-compose-single-exec.yml down
+docker compose -f docker-compose.yaml down
 ```
 
 ### ~~1.6. Queue Initialization~~
