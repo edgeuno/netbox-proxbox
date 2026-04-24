@@ -1,0 +1,25 @@
+name: netbox-proxbox-single-exec
+
+services:
+  proxbox-single-exec:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        NETBOX_VERSION: ${NETBOX_VERSION:-4.5.8}
+    image: netbox-proxbox:${NETBOX_VERSION:-4.5.8}
+    environment:
+      TZ: ${TZ:-UTC}
+    command: >
+      /bin/sh -lc '
+      cd /opt/netbox/netbox/netbox/ &&
+      ls &&
+      /opt/netbox/venv/bin/python manage.py proxboxscrapper
+      '
+    volumes:
+      - ./runtime/configuration.py:/opt/netbox/netbox/netbox/netbox/configuration.py:ro
+      - ./configuration_options.json:/opt/netbox/plugins/netbox-proxbox/configuration_options.json:ro
+      - netbox-media:/opt/netbox/netbox/media
+
+volumes:
+  netbox-media:
