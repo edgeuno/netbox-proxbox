@@ -1,4 +1,5 @@
 import json
+import re
 from django.utils import timezone
 from dataclasses import dataclass, field
 
@@ -127,6 +128,44 @@ class ProxboxSession:
         return proxmox_item
 
     @staticmethod
+    def validate_netbox_config(netbox_config):
+        expected_types = {
+            "manufacturer": str,
+            "virtualmachine_role_id": int,
+            "virtualmachine_role_name": str,
+            "node_role_id": int,
+            "site_id": int,
+            "tenant_name": str,
+            "tenant_regex_validator": str,
+            "tenant_description": str,
+            "create_device_when_not_found": bool,
+        }
+        if not isinstance(netbox_config, dict):
+            raise ValueError("Missing netbox configuration object")
+
+        missing = sorted(set(expected_types) - set(netbox_config))
+        if missing:
+            raise ValueError("Missing netbox settings: {}".format(", ".join(missing)))
+
+        invalid = [
+            key for key, expected in expected_types.items()
+            if not isinstance(netbox_config[key], expected)
+            or (expected is int and isinstance(netbox_config[key], bool))
+        ]
+        if invalid:
+            raise ValueError("Invalid netbox setting types: {}".format(", ".join(invalid)))
+        if not netbox_config["tenant_name"].strip():
+            raise ValueError("tenant_name cannot be empty")
+        if not netbox_config["tenant_regex_validator"].strip():
+            raise ValueError("tenant_regex_validator cannot be empty")
+        try:
+            re.compile(netbox_config["tenant_regex_validator"], re.IGNORECASE)
+        except re.error as error:
+            raise ValueError("Invalid tenant_regex_validator: {}".format(error)) from error
+
+        return netbox_config
+
+    @staticmethod
     def get_list_from_file(file_path):
         print('[{:%H:%M:%S}] Starting reading configuration file at {}...'.format(timezone.now(), file_path))
 
@@ -139,7 +178,10 @@ class ProxboxSession:
         parsed_json = json.loads(file_contents)
 
         proxmox_config = parsed_json.get("proxmox")
-        netbox_config = parsed_json.get("netbox")
+        try:
+            netbox_config = ProxboxSession.validate_netbox_config(parsed_json.get("netbox"))
+        except ValueError as error:
+            raise ValueError("{}: {}".format(file_path, error)) from error
 
         outputList = []
         outputDict = {}
@@ -155,4 +197,4 @@ class ProxboxSession:
             outputList.append(s)
             outputDict[s.domain] = s
 
-        return outputList, outputDict
+        return outputList, outputDict, netbox_config
