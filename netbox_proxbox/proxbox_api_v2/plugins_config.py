@@ -39,6 +39,7 @@ NETBOX_TENANT_REGEX_VALIDATOR = NETBOX_SETTINGS["tenant_regex_validator"]
 NETBOX_TENANT_DESCRIPTION = NETBOX_SETTINGS["tenant_description"]
 NETBOX_MANUFACTURER = NETBOX_SETTINGS["manufacturer"]
 NETBOX_CREATE_DEVICE_WHEN_NOT_FOUND = NETBOX_SETTINGS["create_device_when_not_found"]
+AI_TENANT_SETTINGS = NETBOX_SETTINGS["ai_tenant"]
 
 print(
     "[INFO] Loaded NetBox settings from {}: tenant_name={!r}, tenant_regex_validator={!r}".format(

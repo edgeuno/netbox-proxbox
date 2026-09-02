@@ -42,7 +42,17 @@ class ProxboxConfig(PluginConfig):
             'site_id': 0,
             'tenant_name': 'EdgeUno',
             'tenant_regex_validator': '^e1-',
-            'tenant_description': 'The vm belongs to Edgeuno'
+            'tenant_description': 'The vm belongs to Edgeuno',
+            'create_device_when_not_found': False,
+            'ai_tenant': {
+                'enabled': False,
+                'provider': 'ollama',
+                'url': 'http://host.docker.internal:11434/v1/chat/completions',
+                'model': 'llama3.1:8b',
+                'api_key': '',
+                'timeout_seconds': 20,
+                'minimum_confidence': 0.8
+            }
         }
     }
 

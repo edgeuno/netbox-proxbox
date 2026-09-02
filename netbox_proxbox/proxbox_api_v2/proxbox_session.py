@@ -163,6 +163,42 @@ class ProxboxSession:
         except re.error as error:
             raise ValueError("Invalid tenant_regex_validator: {}".format(error)) from error
 
+        ai_tenant = netbox_config.get("ai_tenant", {"enabled": False})
+        if not isinstance(ai_tenant, dict):
+            raise ValueError("ai_tenant must be an object")
+        if not isinstance(ai_tenant.get("enabled", False), bool):
+            raise ValueError("ai_tenant.enabled must be a boolean")
+        if ai_tenant.get("enabled", False):
+            required = ("provider", "url", "model")
+            missing = [
+                key
+                for key in required
+                if not isinstance(ai_tenant.get(key), str) or not ai_tenant[key].strip()
+            ]
+            if missing:
+                raise ValueError("Missing AI tenant settings: {}".format(", ".join(missing)))
+            ai_tenant["provider"] = ai_tenant["provider"].lower()
+            if ai_tenant["provider"] not in ("openai", "ollama", "anthropic"):
+                raise ValueError("Unsupported AI tenant provider: {}".format(ai_tenant["provider"]))
+            ai_tenant.setdefault("api_key", "")
+            if not isinstance(ai_tenant["api_key"], str):
+                raise ValueError("ai_tenant.api_key must be a string")
+            if ai_tenant["provider"] in ("openai", "anthropic") and not ai_tenant["api_key"].strip():
+                raise ValueError("ai_tenant.api_key is required for {}".format(ai_tenant["provider"]))
+            ai_tenant.setdefault("timeout_seconds", 20)
+            ai_tenant.setdefault("minimum_confidence", 0.8)
+            timeout = ai_tenant["timeout_seconds"]
+            if (
+                not isinstance(timeout, (int, float))
+                or isinstance(timeout, bool)
+                or timeout <= 0
+            ):
+                raise ValueError("ai_tenant.timeout_seconds must be greater than zero")
+            confidence = ai_tenant["minimum_confidence"]
+            if not isinstance(confidence, (int, float)) or isinstance(confidence, bool) or not 0 <= confidence <= 1:
+                raise ValueError("ai_tenant.minimum_confidence must be between 0 and 1")
+        netbox_config["ai_tenant"] = ai_tenant
+
         return netbox_config
 
     @staticmethod

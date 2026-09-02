@@ -350,23 +350,12 @@ def get_set_tenant_from_configuration(test_str):
     tenant_name, client = client_tenant_parser(test_str)
     if tenant_name is None:
         return None
-    nb_tenant = Tenant.objects.filter(name=tenant_name).first()
-
-    if nb_tenant is None:
-        nb_tenant = Tenant.objects.filter(slug=slugify(tenant_name)).first()
-
-    if nb_tenant is None:
-        try:
-            nb_tenant = Tenant(
-                name=tenant_name,
-                slug=slugify(tenant_name)
-            )
-            nb_tenant.save()
-        except Exception as e:
-            # logger.exception(e)
-            # traceback.print_exc()
-            print(e)
-            raise e
+    matches = list(Tenant.objects.filter(name__iexact=tenant_name)[:2])
+    if len(matches) != 1:
+        matches = list(Tenant.objects.filter(slug=slugify(tenant_name))[:2])
+    if len(matches) != 1:
+        return None
+    nb_tenant = matches[0]
     content_type = ContentType.objects.filter(app_label="tenancy", model="tenant").first()
     # set_assign_contact(test_str, client, nb_tenant.id, 'tenancy.tenant')
     set_assign_contact(test_str, client, nb_tenant.id, content_type)
@@ -378,7 +367,6 @@ def set_tenant(netbox_vm, observation):
     tenant = get_set_tenant_from_configuration(observation)
     if tenant is None:
         return netbox_vm
-    tenant = upsert_tenant_group(tenant, netbox_vm)
     vm_conflict = get_vm_by_unique_name_cluster_tenant(netbox_vm, tenant.id)
     if vm_conflict is not None:
         return vm_conflict

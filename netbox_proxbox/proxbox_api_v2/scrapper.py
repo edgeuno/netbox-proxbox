@@ -19,6 +19,7 @@ from .proxmox.proxmox_node import ProxmoxNodes
 from django.utils import timezone
 
 from .proxmox.proxmox_virtualmachine import ProxmoxVirtualMachine
+from .netbox_handler.ai_tenant import run_ai_tenant_fallback
 
 
 class Scrapper:
@@ -126,6 +127,9 @@ class Scrapper:
         print('=============================================')
         print('=============================================')
         print('=============================================')
+        print('=============================================')
+        print('[{:%H:%M:%S}] Running AI tenant fallback for job {}...'.format(timezone.now(), job_id))
+        await asyncio.to_thread(run_ai_tenant_fallback, str(job_id))
         print('=============================================')
         print(message_init)
 
