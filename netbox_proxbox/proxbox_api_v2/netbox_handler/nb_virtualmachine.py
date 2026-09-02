@@ -23,12 +23,11 @@ try:
     from .nb_device_role import upsert_role
     from ..plugins_config import (
         NETBOX_TENANT_NAME,
-        NETBOX_TENANT_REGEX_VALIDATOR,
         NETBOX_VM_ROLE_ID,
         NETBOX_VM_ROLE_NAME,
     )
 
-    from .nb_tag import tag, custom_tag, base_tag
+    from .nb_tag import tag, custom_tag, base_tag, validate_custom_tag
     import re
 
 
@@ -201,20 +200,8 @@ def get_vm_by_unique_name_cluster_tenant(netbox_vm, tenant_id):
     ).exclude(id=netbox_vm.id).first()
 
 
-def default_tenant(netbox_vm):
-    has_string = False
-    try:
-        rgx = r"" + NETBOX_TENANT_REGEX_VALIDATOR
-        matches = re.finditer(rgx, netbox_vm.name, re.MULTILINE | re.IGNORECASE)
-        it = matches.__next__()
-        it.group().lower().strip()
-        has_string = True
-    except Exception as e:
-        pass
-        # print("Error: default_tenant-1 - {}".format(e))
-        # print(e)
-
-    if has_string:
+def default_tenant(netbox_vm, match_name=None):
+    if validate_custom_tag(match_name or netbox_vm.name):
         if NETBOX_TENANT_NAME is not None:
             nb_tenant = Tenant.objects.filter(name=NETBOX_TENANT_NAME).first()
             if nb_tenant is None:
@@ -363,23 +350,12 @@ def get_set_tenant_from_configuration(test_str):
     tenant_name, client = client_tenant_parser(test_str)
     if tenant_name is None:
         return None
-    nb_tenant = Tenant.objects.filter(name=tenant_name).first()
-
-    if nb_tenant is None:
-        nb_tenant = Tenant.objects.filter(slug=slugify(tenant_name)).first()
-
-    if nb_tenant is None:
-        try:
-            nb_tenant = Tenant(
-                name=tenant_name,
-                slug=slugify(tenant_name)
-            )
-            nb_tenant.save()
-        except Exception as e:
-            # logger.exception(e)
-            # traceback.print_exc()
-            print(e)
-            raise e
+    matches = list(Tenant.objects.filter(name__iexact=tenant_name)[:2])
+    if len(matches) != 1:
+        matches = list(Tenant.objects.filter(slug=slugify(tenant_name))[:2])
+    if len(matches) != 1:
+        return None
+    nb_tenant = matches[0]
     content_type = ContentType.objects.filter(app_label="tenancy", model="tenant").first()
     # set_assign_contact(test_str, client, nb_tenant.id, 'tenancy.tenant')
     set_assign_contact(test_str, client, nb_tenant.id, content_type)
@@ -391,7 +367,6 @@ def set_tenant(netbox_vm, observation):
     tenant = get_set_tenant_from_configuration(observation)
     if tenant is None:
         return netbox_vm
-    tenant = upsert_tenant_group(tenant, netbox_vm)
     vm_conflict = get_vm_by_unique_name_cluster_tenant(netbox_vm, tenant.id)
     if vm_conflict is not None:
         return vm_conflict
@@ -428,9 +403,14 @@ def set_contact_to_vm(test_str, netbox_vm):
 
 
 def base_add_configuration(netbox_vm, proxmox_vm, config=None):
+    match_name = proxmox_vm.name if proxmox_vm is not None else netbox_vm.name
+    use_default_tenant = (
+        NETBOX_TENANT_NAME is not None and validate_custom_tag(match_name)
+    )
+
     try:
-        if NETBOX_TENANT_NAME is not None:
-            netbox_vm = default_tenant(netbox_vm)
+        if use_default_tenant:
+            netbox_vm = default_tenant(netbox_vm, match_name)
     except Exception as e1:
         print("Error: base_add_configuration-1 - {}".format(e1))
         # logger.exception(e1)
@@ -441,12 +421,13 @@ def base_add_configuration(netbox_vm, proxmox_vm, config=None):
         return netbox_vm
 
     try:
+        description = config.get('description') or ''
+        netbox_vm.comments = description
+        netbox_vm.save()
         if 'description' in config:
-            if config['description']:
-                netbox_vm.comments = config['description']
-                netbox_vm.save()
-            netbox_vm = set_tenant(netbox_vm, config['description'])
-            netbox_vm = set_contact_to_vm(config['description'], netbox_vm)
+            if not use_default_tenant:
+                netbox_vm = set_tenant(netbox_vm, description)
+            netbox_vm = set_contact_to_vm(description, netbox_vm)
         # else:
         # print('no description')
     except Exception as e2:
@@ -618,9 +599,13 @@ def handle_ip_already_set(netbox_vm, netbox_ip, family=4):
     repeated_tag = custom_tag(name, slugify(name), tag_description, color)
     if repeated_tag:
         netbox_vm.tags.add(repeated_tag)
-    netbox_vm.comments = netbox_vm.comments + '\nDuplicated ip - Name: {} - id {}'.format(netbox_vm_with_ip.name,
-                                                                                          netbox_vm_with_ip.id)
-    netbox_vm.save()
+    warning = 'Duplicated ip - IP: {} - Name: {} - id {}'.format(
+        netbox_ip.address, netbox_vm_with_ip.name, netbox_vm_with_ip.id
+    )
+    comments = netbox_vm.comments or ''
+    if warning not in comments.splitlines():
+        netbox_vm.comments = '{}{}{}'.format(comments, '\n' if comments else '', warning)
+        netbox_vm.save()
     return netbox_vm, None
 
 
@@ -718,17 +703,93 @@ def base_add_ip(netbox_vm, proxmox_vm, config=None):
     return netbox_vm
 
 
-def upsert_netbox_vm(proxmox_vm, config=None):
-    cluster_name = proxmox_vm.cluster.name
+def _same_proxmox_vm(netbox_vm, vmid):
+    stored_vmid = (netbox_vm.custom_field_data or {}).get("proxmox_id")
+    return stored_vmid is not None and str(stored_vmid) == str(vmid)
+
+
+def _collision_vm_name(vm_name, vmid, cluster_name):
+    cluster_slug = slugify(cluster_name) or "cluster"
+    separator = "--{}--".format(vmid)
+    cluster_slug = cluster_slug[:63 - len(separator)]
+    suffix = "{}{}".format(separator, cluster_slug)
+    return "{}{}".format(vm_name[:64 - len(suffix)], suffix)
+
+
+def _upsert_vm_record(proxmox_vm, status):
+    cluster = proxmox_vm.cluster.nb_cluster
+    cluster_id = cluster.id
     vm_name = proxmox_vm.name.strip() if isinstance(proxmox_vm.name, str) else proxmox_vm.name
     vmid = proxmox_vm.vmid
-    node = proxmox_vm.node
-    cluster_id = proxmox_vm.cluster.nb_cluster.id
 
-    netbox_vm = VirtualMachine.objects.filter(cluster_id=cluster_id, custom_field_data__proxmox_id=vmid,
-                                              custom_field_data__proxmox_node=node).first()
-    if netbox_vm is None:
-        netbox_vm = VirtualMachine.objects.filter(cluster_id=cluster_id, name__iexact=vm_name).first()
+    for attempt in range(2):
+        netbox_vm = VirtualMachine.objects.filter(
+            cluster_id=cluster_id,
+            custom_field_data__proxmox_id=vmid,
+        ).first()
+        base_vm = VirtualMachine.objects.filter(
+            cluster_id=cluster_id,
+            name__iexact=vm_name,
+        ).first()
+
+        if netbox_vm is None and base_vm is not None and _same_proxmox_vm(base_vm, vmid):
+            netbox_vm = base_vm
+
+        name = vm_name
+        if base_vm is not None and (netbox_vm is None or base_vm.id != netbox_vm.id):
+            name = _collision_vm_name(vm_name, vmid, proxmox_vm.cluster.name)
+
+        named_vm = VirtualMachine.objects.filter(
+            cluster_id=cluster_id,
+            name__iexact=name,
+        ).first()
+        if named_vm is not None and (netbox_vm is None or named_vm.id != netbox_vm.id):
+            if not _same_proxmox_vm(named_vm, vmid):
+                stored_vmid = (named_vm.custom_field_data or {}).get("proxmox_id")
+                raise ValueError(
+                    "VM name {} belongs to Proxmox VMID {}; cannot assign VMID {}".format(
+                        name, stored_vmid, vmid
+                    )
+                )
+            netbox_vm = named_vm
+
+        created = netbox_vm is None
+        if created:
+            netbox_vm = VirtualMachine()
+
+        netbox_vm.name = name
+        netbox_vm.status = status
+        netbox_vm.cluster = cluster
+        netbox_vm.cluster_id = cluster_id
+        netbox_vm.custom_field_data = netbox_vm.custom_field_data or {}
+        netbox_vm.custom_field_data["proxmox_id"] = vmid
+        netbox_vm.custom_field_data["proxmox_node"] = proxmox_vm.node
+        netbox_vm.custom_field_data["proxmox_type"] = proxmox_vm.type
+
+        try:
+            with transaction.atomic():
+                netbox_vm.save()
+        except IntegrityError:
+            if attempt == 0:
+                continue
+            raise
+
+        if created:
+            print("VIRTUAL MACHINE CREATED")
+            print(netbox_vm)
+        if name != vm_name:
+            print(
+                "[WARN] VM name {} already exists in cluster {}; using {} for VMID {}.".format(
+                    vm_name, cluster.name, name, vmid
+                )
+            )
+        return netbox_vm
+
+    raise IntegrityError("Unable to resolve VM name collision")
+
+
+def upsert_netbox_vm(proxmox_vm, config=None):
+    vm_name = proxmox_vm.name.strip() if isinstance(proxmox_vm.name, str) else proxmox_vm.name
 
     status = 'offline'
     if proxmox_vm.status == 'running':
@@ -736,31 +797,9 @@ def upsert_netbox_vm(proxmox_vm, config=None):
     elif proxmox_vm.status == 'stopped':
         status = 'offline'
 
-    if netbox_vm is None:
-        try:
-            netbox_vm = VirtualMachine(name=vm_name)
-            netbox_vm.save()
-            print("VIRTUAL MACHINE CREATED")
-            print(netbox_vm)
-
-        except Exception as e:
-            print("Error: get_set_vm - {}".format(e))
-            print("[get_set_vm] Creation of VM/CT failed.")
-            # logger.exception(e)
-            # traceback.print_exc()
-            print(e)
-            netbox_vm = None
+    netbox_vm = _upsert_vm_record(proxmox_vm, status)
 
     if netbox_vm:
-        netbox_vm.status = status
-        netbox_vm.cluster_id = proxmox_vm.cluster.nb_cluster.id
-        netbox_vm.cluster = proxmox_vm.cluster.nb_cluster
-        netbox_vm.name = vm_name
-        netbox_vm.save()
-        # Add the custom fields
-        netbox_vm.custom_field_data["proxmox_id"] = proxmox_vm.vmid
-        netbox_vm.custom_field_data["proxmox_node"] = proxmox_vm.node
-        netbox_vm.custom_field_data["proxmox_type"] = proxmox_vm.type
         # Set the local context data
         netbox_vm = base_local_context_data(netbox_vm, proxmox_vm)
         # Update all the machine resources if necesary
@@ -772,7 +811,7 @@ def upsert_netbox_vm(proxmox_vm, config=None):
             if removed > 0:
                 print("[WARN] Removed {} duplicate tag links before sync for VM {}.".format(removed, netbox_vm.name))
             netbox_vm.tags.add(c_tag)
-            netbox_vm = base_tag(netbox_vm)
+            netbox_vm = base_tag(netbox_vm, match_name=vm_name)
         except Exception as e:
             print("Error: upsert_netbox_vm-tag - {}".format(e))
             print(e)
@@ -784,7 +823,7 @@ def upsert_netbox_vm(proxmox_vm, config=None):
                 try:
                     c_tag = tag()
                     netbox_vm.tags.add(c_tag)
-                    netbox_vm = base_tag(netbox_vm)
+                    netbox_vm = base_tag(netbox_vm, match_name=vm_name)
                 except Exception as e2:
                     print("Error: upsert_netbox_vm-tag-retry - {}".format(e2))
                     print(e2)

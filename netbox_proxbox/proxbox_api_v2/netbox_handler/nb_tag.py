@@ -70,7 +70,7 @@ def tag():
     return custom_tag(proxbox_tag_name, proxbox_tag_slug, description)
 
 
-def base_tag(netbox_vm, other_tags=None):
+def base_tag(netbox_vm, other_tags=None, match_name=None):
     # Get current tags
     tags = netbox_vm.tags.all()
 
@@ -89,7 +89,7 @@ def base_tag(netbox_vm, other_tags=None):
 
     # custom edgeuno tags
 
-    has_string = validate_custom_tag(netbox_vm.name)
+    has_string = validate_custom_tag(match_name or netbox_vm.name)
 
     customer_tag_name = "Customer"
     customer_tag_slug = "customer"
