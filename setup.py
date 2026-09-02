@@ -37,7 +37,7 @@ dev_requires = [
 
 setup(
     name="netbox-proxbox",
-    version="0.1.0",
+    version="0.1.1",
     author="Javier Alejandro Ruiz",  # Original Autor Emerson Felipe
     author_email="javier.ruiz@edgeuno.com",  # Original Autor Email emerson.felipe@nmultifibra.com.br
     description="Integration between Proxmox and Netbox",
