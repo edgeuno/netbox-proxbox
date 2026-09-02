@@ -421,13 +421,13 @@ def base_add_configuration(netbox_vm, proxmox_vm, config=None):
         return netbox_vm
 
     try:
+        description = config.get('description') or ''
+        netbox_vm.comments = description
+        netbox_vm.save()
         if 'description' in config:
-            if config['description']:
-                netbox_vm.comments = config['description']
-                netbox_vm.save()
             if not use_default_tenant:
-                netbox_vm = set_tenant(netbox_vm, config['description'])
-            netbox_vm = set_contact_to_vm(config['description'], netbox_vm)
+                netbox_vm = set_tenant(netbox_vm, description)
+            netbox_vm = set_contact_to_vm(description, netbox_vm)
         # else:
         # print('no description')
     except Exception as e2:
@@ -599,9 +599,13 @@ def handle_ip_already_set(netbox_vm, netbox_ip, family=4):
     repeated_tag = custom_tag(name, slugify(name), tag_description, color)
     if repeated_tag:
         netbox_vm.tags.add(repeated_tag)
-    netbox_vm.comments = netbox_vm.comments + '\nDuplicated ip - Name: {} - id {}'.format(netbox_vm_with_ip.name,
-                                                                                          netbox_vm_with_ip.id)
-    netbox_vm.save()
+    warning = 'Duplicated ip - IP: {} - Name: {} - id {}'.format(
+        netbox_ip.address, netbox_vm_with_ip.name, netbox_vm_with_ip.id
+    )
+    comments = netbox_vm.comments or ''
+    if warning not in comments.splitlines():
+        netbox_vm.comments = '{}{}{}'.format(comments, '\n' if comments else '', warning)
+        netbox_vm.save()
     return netbox_vm, None
 
 
