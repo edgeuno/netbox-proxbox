@@ -1,5 +1,6 @@
 import json
 import re
+from ipaddress import ip_network
 from django.utils import timezone
 from dataclasses import dataclass, field
 
@@ -198,6 +199,31 @@ class ProxboxSession:
             if not isinstance(confidence, (int, float)) or isinstance(confidence, bool) or not 0 <= confidence <= 1:
                 raise ValueError("ai_tenant.minimum_confidence must be between 0 and 1")
         netbox_config["ai_tenant"] = ai_tenant
+
+        excluded_ranges = netbox_config.get("duplicate_ip_tag_excluded_ranges", [])
+        if not isinstance(excluded_ranges, list):
+            raise ValueError("duplicate_ip_tag_excluded_ranges must be a list")
+        if any(not isinstance(value, str) or not value.strip() for value in excluded_ranges):
+            raise ValueError(
+                "duplicate_ip_tag_excluded_ranges entries must be non-empty strings"
+            )
+        try:
+            netbox_config["duplicate_ip_tag_excluded_ranges"] = [
+                str(ip_network(value.strip(), strict=False))
+                for value in excluded_ranges
+            ]
+        except ValueError as error:
+            raise ValueError(
+                "Invalid duplicate_ip_tag_excluded_ranges entry: {}".format(error)
+            ) from error
+        comment_excluded = netbox_config.get(
+            "duplicate_ip_comment_for_excluded_ranges", True
+        )
+        if not isinstance(comment_excluded, bool):
+            raise ValueError(
+                "duplicate_ip_comment_for_excluded_ranges must be a boolean"
+            )
+        netbox_config["duplicate_ip_comment_for_excluded_ranges"] = comment_excluded
 
         return netbox_config
 

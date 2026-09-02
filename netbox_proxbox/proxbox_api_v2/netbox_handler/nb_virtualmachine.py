@@ -6,6 +6,7 @@ from datetime import datetime
 
 # import logging
 import traceback
+from ipaddress import ip_interface
 
 # logging.basicConfig(level=logging.DEBUG)
 # logger = logging.getLogger(__name__)
@@ -22,6 +23,8 @@ try:
 
     from .nb_device_role import upsert_role
     from ..plugins_config import (
+        DUPLICATE_IP_COMMENT_FOR_EXCLUDED_RANGES,
+        DUPLICATE_IP_TAG_EXCLUDED_RANGES,
         NETBOX_TENANT_NAME,
         NETBOX_VM_ROLE_ID,
         NETBOX_VM_ROLE_NAME,
@@ -38,6 +41,24 @@ except Exception as e:
 
 ipv4_regex = r"\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}(\/\d{1,3})?"
 ipv6_regex = r"([a-zA-Z0-9]{1,4}(:[a-zA-Z0-9]{0,4})?(:[a-zA-Z0-9]{0,4})?(:[a-zA-Z0-9]{0,4})?(:[a-zA-Z0-9]{0,4})?(:[a-zA-Z0-9]{0,4})?(:[a-zA-Z0-9]{0,4})?(:[a-zA-Z0-9]{0,4})?(:[a-zA-Z0-9]{0,4})?(:[a-zA-Z0-9]{0,4})?(:[a-zA-Z0-9]{0,4})?(:[a-zA-Z0-9]{0,4})?(:[a-zA-Z0-9]{0,4})?(:[a-zA-Z0-9]{0,4})?:([a-zA-Z0-9]{0,4})?:([a-zA-Z0-9]{0,4})?(\.\d{1,3}\.\d{1,3}\.\d{1,3})?(\/\d{1,3})?)"
+duplicate_ip_warning_regex = re.compile(
+    r"^Duplicated ip - IP: (?P<ip>\S+) - Name: .* - id \d+$"
+)
+
+
+def duplicate_ip_tag_is_excluded(address):
+    ip = ip_interface(str(address)).ip
+    return any(ip in network for network in DUPLICATE_IP_TAG_EXCLUDED_RANGES)
+
+
+def has_nonexcluded_duplicate_warning(comments):
+    for line in (comments or '').splitlines():
+        if not line.startswith('Duplicated ip - '):
+            continue
+        match = duplicate_ip_warning_regex.match(line)
+        if match is None or not duplicate_ip_tag_is_excluded(match.group('ip')):
+            return True
+    return False
 
 
 def dedupe_vm_tagged_items(netbox_vm, tag_id=None):
@@ -591,19 +612,22 @@ def handle_ip_already_set(netbox_vm, netbox_ip, family=4):
     # If there is not vm with the ip or is the same as the incoming vm
     if netbox_vm_with_ip is None or netbox_vm.id == netbox_vm_with_ip.id:
         return netbox_vm, netbox_ip
-    # If the netbox_vm is not the same as the netbox_vm_with_ip then we are going to set up a tag and a comment
-    # with the ip and the vm id that has the same ip
-    name = 'Repeated Ip'
-    tag_description = "No description"
-    color = 'ff3c3f'
-    repeated_tag = custom_tag(name, slugify(name), tag_description, color)
-    if repeated_tag:
-        netbox_vm.tags.add(repeated_tag)
     warning = 'Duplicated ip - IP: {} - Name: {} - id {}'.format(
         netbox_ip.address, netbox_vm_with_ip.name, netbox_vm_with_ip.id
     )
     comments = netbox_vm.comments or ''
-    if warning not in comments.splitlines():
+    excluded = duplicate_ip_tag_is_excluded(netbox_ip.address)
+    if not excluded:
+        repeated_tag = custom_tag('Repeated Ip', 'repeated-ip', 'No description', 'ff3c3f')
+        if repeated_tag:
+            netbox_vm.tags.add(repeated_tag)
+    elif not has_nonexcluded_duplicate_warning(comments):
+        repeated_tag = netbox_vm.tags.filter(slug='repeated-ip').first()
+        if repeated_tag:
+            netbox_vm.tags.remove(repeated_tag)
+
+    should_add_warning = not excluded or DUPLICATE_IP_COMMENT_FOR_EXCLUDED_RANGES
+    if should_add_warning and warning not in comments.splitlines():
         netbox_vm.comments = '{}{}{}'.format(comments, '\n' if comments else '', warning)
         netbox_vm.save()
     return netbox_vm, None

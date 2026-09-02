@@ -44,6 +44,8 @@ class ProxboxConfig(PluginConfig):
             'tenant_regex_validator': '^e1-',
             'tenant_description': 'The vm belongs to Edgeuno',
             'create_device_when_not_found': False,
+            'duplicate_ip_tag_excluded_ranges': [],
+            'duplicate_ip_comment_for_excluded_ranges': True,
             'ai_tenant': {
                 'enabled': False,
                 'provider': 'ollama',

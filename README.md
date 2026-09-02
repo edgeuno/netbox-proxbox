@@ -426,6 +426,10 @@ The following options are available:
 * `netbox.tenant_name`: (String) Default name for the tenant of the virtual machine
 * `netbox.tenant_regex_validator`: (String) If information about the tenant is set in the description of the virtual machine, give how to parse it so the default tenant is given. This helps when a lot of virtual machines belong to another tenants
 * `netbox.tenant_description`: (String) Description for the default tenant
+* `netbox.duplicate_ip_tag_excluded_ranges`: (List<String>) IPv4 or IPv6 CIDR ranges whose
+  duplicate IPs should not add the `repeated-ip` tag.
+* `netbox.duplicate_ip_comment_for_excluded_ranges`: (Bool) Add the duplicate warning comment
+  for IPs in an excluded range. Ignored when the excluded range list is empty.
 
 ---
 
