@@ -22,6 +22,12 @@
     "tenant_description": "Nice Description for the tenant",
     "create_device_when_not_found": false,
     "duplicate_ip_tag_excluded_ranges": [],
-    "duplicate_ip_comment_for_excluded_ranges": true
+    "duplicate_ip_comment_for_excluded_ranges": true,
+    "tenant_enrichment": {
+      "enabled": false,
+      "url": "https://example.test/tenant-enrichment",
+      "api_key": "",
+      "timeout_seconds": 10
+    }
   }
 }

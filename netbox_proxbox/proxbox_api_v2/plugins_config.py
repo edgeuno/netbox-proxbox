@@ -41,6 +41,7 @@ NETBOX_TENANT_DESCRIPTION = NETBOX_SETTINGS["tenant_description"]
 NETBOX_MANUFACTURER = NETBOX_SETTINGS["manufacturer"]
 NETBOX_CREATE_DEVICE_WHEN_NOT_FOUND = NETBOX_SETTINGS["create_device_when_not_found"]
 AI_TENANT_SETTINGS = NETBOX_SETTINGS["ai_tenant"]
+TENANT_ENRICHMENT_SETTINGS = NETBOX_SETTINGS["tenant_enrichment"]
 DUPLICATE_IP_TAG_EXCLUDED_RANGES = tuple(
     ip_network(value) for value in NETBOX_SETTINGS["duplicate_ip_tag_excluded_ranges"]
 )

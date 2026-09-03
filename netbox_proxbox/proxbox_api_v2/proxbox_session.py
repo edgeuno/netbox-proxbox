@@ -200,6 +200,33 @@ class ProxboxSession:
                 raise ValueError("ai_tenant.minimum_confidence must be between 0 and 1")
         netbox_config["ai_tenant"] = ai_tenant
 
+        tenant_enrichment = netbox_config.get(
+            "tenant_enrichment", {"enabled": False}
+        )
+        if not isinstance(tenant_enrichment, dict):
+            raise ValueError("tenant_enrichment must be an object")
+        if not isinstance(tenant_enrichment.get("enabled", False), bool):
+            raise ValueError("tenant_enrichment.enabled must be a boolean")
+        if tenant_enrichment.get("enabled", False):
+            url = tenant_enrichment.get("url")
+            if not isinstance(url, str) or not url.strip():
+                raise ValueError("tenant_enrichment.url is required when enabled")
+            tenant_enrichment["url"] = url.strip()
+            tenant_enrichment.setdefault("api_key", "")
+            if not isinstance(tenant_enrichment["api_key"], str):
+                raise ValueError("tenant_enrichment.api_key must be a string")
+            tenant_enrichment.setdefault("timeout_seconds", 10)
+            timeout = tenant_enrichment["timeout_seconds"]
+            if (
+                not isinstance(timeout, (int, float))
+                or isinstance(timeout, bool)
+                or timeout <= 0
+            ):
+                raise ValueError(
+                    "tenant_enrichment.timeout_seconds must be greater than zero"
+                )
+        netbox_config["tenant_enrichment"] = tenant_enrichment
+
         excluded_ranges = netbox_config.get("duplicate_ip_tag_excluded_ranges", [])
         if not isinstance(excluded_ranges, list):
             raise ValueError("duplicate_ip_tag_excluded_ranges must be a list")
