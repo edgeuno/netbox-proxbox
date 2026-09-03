@@ -1,5 +1,8 @@
-from django.template.defaultfilters import slugify
+import colorsys
+import hashlib
 import re
+
+from django.template.defaultfilters import slugify
 
 from netbox_proxbox.proxbox_api_v2.plugins_config import NETBOX_TENANT_REGEX_VALIDATOR, NETBOX_TENANT_NAME, \
     NETBOX_TENANT_DESCRIPTION
@@ -34,30 +37,24 @@ def validate_custom_tag(name):
 
 
 def custom_tag(tag_name="Proxbox", tag_slug="proxbox", tag_description="No description", color='ff5722'):
-    # Check if Proxbox tag already exists.
-    proxbox_tag = Tag.objects.filter(slug=tag_slug).first()
-
-    if proxbox_tag is None:
-        try:
-            # If Proxbox tag does not exist, create one.
-            output = Tag(
-                name=tag_name,
-                slug=tag_slug,
-                color=color,
-                description=tag_description
-            )
-            output.save()
-        except Exception as e:
-            # logger.exception(e)
-            # traceback.print_exc()
-            print(e)
-            print("Error creating the '{0}' tag. Possible errors: the name '{0}' or slug '{1}' is already used.".format(
-                tag_name, tag_slug))
-            return None
-    else:
-        output = proxbox_tag
-
-    return output
+    try:
+        output, _ = Tag.objects.get_or_create(
+            slug=tag_slug,
+            defaults={
+                "name": tag_name,
+                "color": color,
+                "description": tag_description,
+            },
+        )
+        return output
+    except Exception as e:
+        output = Tag.objects.filter(name__iexact=tag_name).first()
+        if output is not None:
+            return output
+        print(e)
+        print("Error creating the '{0}' tag. Possible errors: the name '{0}' or slug '{1}' is already used.".format(
+            tag_name, tag_slug))
+        return None
 
 
 #
@@ -70,7 +67,81 @@ def tag():
     return custom_tag(proxbox_tag_name, proxbox_tag_slug, description)
 
 
-def base_tag(netbox_vm, other_tags=None, match_name=None):
+PROXMOX_TAG_PREFIX = "proxmox-"
+
+
+def parse_proxmox_tags(value):
+    if value is None:
+        value = ""
+    if not isinstance(value, str):
+        return None
+
+    tags = []
+    seen = set()
+    for tag_name in value.split(";"):
+        tag_name = tag_name.strip()
+        key = tag_name.lower()
+        if tag_name and key not in seen:
+            tags.append(tag_name)
+            seen.add(key)
+    return tags
+
+
+def proxmox_tags_from(proxmox_vm, config):
+    data = getattr(proxmox_vm, "data", None)
+    if isinstance(data, dict) and "tags" in data:
+        tags = parse_proxmox_tags(data["tags"])
+        if tags is not None:
+            return tags
+    if isinstance(config, dict):
+        return parse_proxmox_tags(config.get("tags"))
+    return None
+
+
+def proxmox_tag_slug(tag_name):
+    source = tag_name.strip().lower()
+    tag_slug = slugify(source) or "tag"
+    if not re.fullmatch(r"[a-z0-9_-]+", source):
+        tag_slug = "{}-{}".format(
+            tag_slug, hashlib.sha256(source.encode()).hexdigest()[:8]
+        )
+    return PROXMOX_TAG_PREFIX + tag_slug
+
+
+def proxmox_tag_color(tag_name):
+    source = tag_name.strip().lower()
+    letters = "".join(char for char in source if char.isascii() and char.isalpha())
+    if not letters:
+        return "a0a0a0"
+
+    hue = int.from_bytes(hashlib.sha256(letters.encode()).digest(), "big") % 360
+    level = min(max(len([part for part in source.split("-") if part]) - 1, 0), 5)
+    saturation = (50 + 5 * level) / 100
+    brightness = (75 - 5 * level) / 100
+    rgb = colorsys.hsv_to_rgb(hue / 360, saturation, brightness)
+    return "".join("{:02x}".format(round(value * 255)) for value in rgb)
+
+
+def sync_proxmox_tags(netbox_vm, tag_names):
+    desired_slugs = set()
+    for tag_name in tag_names:
+        tag_slug = proxmox_tag_slug(tag_name)
+        desired_slugs.add(tag_slug)
+        tag_obj = custom_tag(
+            tag_name,
+            tag_slug,
+            "Imported from Proxmox",
+            proxmox_tag_color(tag_name),
+        )
+        if tag_obj is not None:
+            netbox_vm.tags.add(tag_obj)
+
+    for tag_obj in netbox_vm.tags.filter(slug__startswith=PROXMOX_TAG_PREFIX):
+        if tag_obj.slug not in desired_slugs:
+            netbox_vm.tags.remove(tag_obj)
+
+
+def base_tag(netbox_vm, proxmox_tags=None, match_name=None):
     # Get current tags
     tags = netbox_vm.tags.all()
 
@@ -115,20 +186,8 @@ def base_tag(netbox_vm, other_tags=None, match_name=None):
                 netbox_vm.tags.add(customer_tag)
                 sve_custom = True
 
-    if other_tags is not None:
-        for t in other_tags:
-            try:
-                custom_tag_name = t
-                custom_tag_slug = t.replace(" ", "_").lower()
-                custom_tag_obj = custom_tag(custom_tag_name, custom_tag_slug, t)
-                if custom_tag_obj.id not in tags:
-                    netbox_vm.tags.add(custom_tag)
-                    sve_custom = True
-            except Exception as e:
-                # logger.exception(e)
-                # traceback.print_exc()
-                print(e)
-                print("Error: base_tag-other_tags - {}".format(e))
+    if proxmox_tags is not None:
+        sync_proxmox_tags(netbox_vm, proxmox_tags)
 
 
     if sve_custom:

@@ -30,7 +30,13 @@ try:
         NETBOX_VM_ROLE_NAME,
     )
 
-    from .nb_tag import tag, custom_tag, base_tag, validate_custom_tag
+    from .nb_tag import (
+        tag,
+        custom_tag,
+        base_tag,
+        proxmox_tags_from,
+        validate_custom_tag,
+    )
     import re
 
 
@@ -814,6 +820,7 @@ def _upsert_vm_record(proxmox_vm, status):
 
 def upsert_netbox_vm(proxmox_vm, config=None):
     vm_name = proxmox_vm.name.strip() if isinstance(proxmox_vm.name, str) else proxmox_vm.name
+    proxmox_tags = proxmox_tags_from(proxmox_vm, config)
 
     status = 'offline'
     if proxmox_vm.status == 'running':
@@ -835,7 +842,9 @@ def upsert_netbox_vm(proxmox_vm, config=None):
             if removed > 0:
                 print("[WARN] Removed {} duplicate tag links before sync for VM {}.".format(removed, netbox_vm.name))
             netbox_vm.tags.add(c_tag)
-            netbox_vm = base_tag(netbox_vm, match_name=vm_name)
+            netbox_vm = base_tag(
+                netbox_vm, proxmox_tags=proxmox_tags, match_name=vm_name
+            )
         except Exception as e:
             print("Error: upsert_netbox_vm-tag - {}".format(e))
             print(e)
@@ -847,7 +856,9 @@ def upsert_netbox_vm(proxmox_vm, config=None):
                 try:
                     c_tag = tag()
                     netbox_vm.tags.add(c_tag)
-                    netbox_vm = base_tag(netbox_vm, match_name=vm_name)
+                    netbox_vm = base_tag(
+                        netbox_vm, proxmox_tags=proxmox_tags, match_name=vm_name
+                    )
                 except Exception as e2:
                     print("Error: upsert_netbox_vm-tag-retry - {}".format(e2))
                     print(e2)
