@@ -54,6 +54,12 @@ class ProxboxConfig(PluginConfig):
                 'api_key': '',
                 'timeout_seconds': 20,
                 'minimum_confidence': 0.8
+            },
+            'tenant_enrichment': {
+                'enabled': False,
+                'url': 'https://example.test/tenant-enrichment',
+                'api_key': '',
+                'timeout_seconds': 10
             }
         }
     }
