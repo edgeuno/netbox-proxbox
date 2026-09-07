@@ -1,0 +1,31 @@
+name: netbox-proxbox-cleanup
+
+services:
+  cleanup:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        NETBOX_VERSION: ${NETBOX_VERSION:-4.5.8}
+    image: netbox-proxbox:${NETBOX_VERSION:-4.5.8}
+    environment:
+      TZ: ${TZ:-UTC}
+      PROXBOX_CLEANUP_REPORT_DIR: /opt/netbox/runtime/cleanup_reports
+      CLEANUP_DRY_RUN: ${CLEANUP_DRY_RUN:-0}
+    command: >
+      /bin/sh -lc '
+      cd /opt/netbox/netbox/netbox/ &&
+      if [ "$${CLEANUP_DRY_RUN}" = "1" ]; then
+        /opt/netbox/venv/bin/python manage.py cleanup_netbox_only_vms --dry-run;
+      else
+        /opt/netbox/venv/bin/python manage.py cleanup_netbox_only_vms;
+      fi
+      '
+    volumes:
+      - ./runtime/configuration.py:/opt/netbox/netbox/netbox/netbox/configuration.py:ro
+      - ./configuration_options.json:/opt/netbox/plugins/netbox-proxbox/configuration_options.json:ro
+      - ./runtime/cleanup_reports:/opt/netbox/runtime/cleanup_reports
+      - netbox-media:/opt/netbox/netbox/media
+
+volumes:
+  netbox-media:

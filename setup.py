@@ -24,6 +24,7 @@ requires = [
     'pynetbox>=5',
     'paramiko>=2',
     'proxmoxer>=1',
+    'openpyxl>=3',
     'pytz'
 ]
 

@@ -140,4 +140,5 @@ dmypy.json
 /proxbox_portscanner_result.txt
 /runtime/configuration.py
 /runtime/scanner.env
+/runtime/cleanup_reports/
 /others/
