@@ -207,6 +207,11 @@ class ProxboxSession:
             raise ValueError("tenant_enrichment must be an object")
         if not isinstance(tenant_enrichment.get("enabled", False), bool):
             raise ValueError("tenant_enrichment.enabled must be a boolean")
+        tenant_enrichment.setdefault("override_tenant", False)
+        if not isinstance(tenant_enrichment["override_tenant"], bool):
+            raise ValueError(
+                "tenant_enrichment.override_tenant must be a boolean"
+            )
         if tenant_enrichment.get("enabled", False):
             url = tenant_enrichment.get("url")
             if not isinstance(url, str) or not url.strip():

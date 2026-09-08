@@ -12,7 +12,7 @@ Execution Steps
 import asyncio
 import uuid
 
-from .plugins_config import PROXMOX_SESSIONS_LIST
+from .plugins_config import PROXMOX_SESSIONS_LIST, TENANT_ENRICHMENT_SETTINGS
 from .proxmox.proxmox_cluster import ProxmoxCluster
 from .proxmox.proxmox_node import ProxmoxNodes
 
@@ -20,7 +20,10 @@ from django.utils import timezone
 
 from .proxmox.proxmox_virtualmachine import ProxmoxVirtualMachine
 from .netbox_handler.ai_tenant import run_ai_tenant_fallback
-from .netbox_handler.tenant_enrichment import run_tenant_enrichment
+from .netbox_handler.tenant_enrichment import (
+    run_override_tenant_assignment,
+    run_tenant_enrichment,
+)
 
 
 class Scrapper:
@@ -129,11 +132,27 @@ class Scrapper:
         print('=============================================')
         print('=============================================')
         print('=============================================')
-        print('[{:%H:%M:%S}] Running AI tenant fallback for job {}...'.format(timezone.now(), job_id))
-        await asyncio.to_thread(run_ai_tenant_fallback, str(job_id))
-        print('=============================================')
-        print('[{:%H:%M:%S}] Running tenant enrichment for job {}...'.format(timezone.now(), job_id))
-        await asyncio.to_thread(run_tenant_enrichment, str(job_id))
+        if TENANT_ENRICHMENT_SETTINGS.get("override_tenant", False):
+            print(
+                '[{:%H:%M:%S}] Running tenant override for job {}...'.format(
+                    timezone.now(), job_id
+                )
+            )
+            await asyncio.to_thread(run_override_tenant_assignment, str(job_id))
+        else:
+            print(
+                '[{:%H:%M:%S}] Running AI tenant fallback for job {}...'.format(
+                    timezone.now(), job_id
+                )
+            )
+            await asyncio.to_thread(run_ai_tenant_fallback, str(job_id))
+            print('=============================================')
+            print(
+                '[{:%H:%M:%S}] Running tenant enrichment for job {}...'.format(
+                    timezone.now(), job_id
+                )
+            )
+            await asyncio.to_thread(run_tenant_enrichment, str(job_id))
         print('=============================================')
         print(message_init)
 

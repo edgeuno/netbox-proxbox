@@ -25,6 +25,7 @@
     "duplicate_ip_comment_for_excluded_ranges": true,
     "tenant_enrichment": {
       "enabled": false,
+      "override_tenant": false,
       "url": "https://example.test/tenant-enrichment",
       "api_key": "",
       "timeout_seconds": 10
