@@ -212,6 +212,16 @@ class ProxboxSession:
             raise ValueError(
                 "tenant_enrichment.override_tenant must be a boolean"
             )
+        tenant_enrichment.setdefault("batch_size", 10)
+        batch_size = tenant_enrichment["batch_size"]
+        if (
+            not isinstance(batch_size, int)
+            or isinstance(batch_size, bool)
+            or batch_size <= 0
+        ):
+            raise ValueError(
+                "tenant_enrichment.batch_size must be a positive integer"
+            )
         if tenant_enrichment.get("enabled", False):
             url = tenant_enrichment.get("url")
             if not isinstance(url, str) or not url.strip():

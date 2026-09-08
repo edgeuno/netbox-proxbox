@@ -1,6 +1,11 @@
+import random
 import re
+import time
 import unicodedata
 from collections import defaultdict
+from concurrent.futures import FIRST_COMPLETED, ThreadPoolExecutor, wait
+from datetime import datetime, timezone
+from email.utils import parsedate_to_datetime
 
 import requests
 from django.contrib.contenttypes.models import ContentType
@@ -67,6 +72,8 @@ CANDIDATE_RE = re.compile(
 )
 CUSTOMER_TAG_RE = re.compile(r"(?:^|-)cust-(\d+)$", re.IGNORECASE)
 EMAIL_RE = re.compile(r"\bemail\s*:\s*[^\s@]+@([^\s;]+)", re.IGNORECASE)
+EXTERNAL_REQUEST_RETRIES = 10
+MAX_RETRY_DELAY_SECONDS = 30
 
 
 def _parse_response(data):
@@ -152,6 +159,89 @@ def _request_tenant(settings, vm, tags):
     )
     response.raise_for_status()
     return _parse_response(response.json())
+
+
+def _retry_after_seconds(error):
+    response = getattr(error, "response", None)
+    value = response.headers.get("Retry-After") if response is not None else None
+    if not value:
+        return 0
+    try:
+        return max(0, float(value))
+    except ValueError:
+        try:
+            retry_at = parsedate_to_datetime(value)
+            if retry_at.tzinfo is None:
+                retry_at = retry_at.replace(tzinfo=timezone.utc)
+            return max(0, (retry_at - datetime.now(timezone.utc)).total_seconds())
+        except (TypeError, ValueError, OverflowError):
+            return 0
+
+
+def _is_retryable_request_error(error):
+    if isinstance(error, (requests.Timeout, requests.ConnectionError)):
+        return True
+    if not isinstance(error, requests.HTTPError) or error.response is None:
+        return False
+    status = error.response.status_code
+    return status == 429 or 500 <= status <= 599
+
+
+def _call_with_retry(service, vm_id, function, *args):
+    for retry in range(EXTERNAL_REQUEST_RETRIES + 1):
+        try:
+            return function(*args)
+        except Exception as error:
+            if retry == EXTERNAL_REQUEST_RETRIES or not _is_retryable_request_error(
+                error
+            ):
+                raise
+            backoff = min(2**retry, MAX_RETRY_DELAY_SECONDS)
+            delay = min(
+                backoff + random.uniform(0, backoff * 0.25),
+                MAX_RETRY_DELAY_SECONDS,
+            )
+            delay = max(delay, _retry_after_seconds(error))
+            print(
+                "[TENANT ENRICHMENT] {} retry {}/{} for VM {} in {:.1f}s: {}".format(
+                    service,
+                    retry + 1,
+                    EXTERNAL_REQUEST_RETRIES,
+                    vm_id,
+                    delay,
+                    error,
+                )
+            )
+            time.sleep(delay)
+
+
+def _apply_enrichment(vm, enrichment, tenant, confidence, override, stats):
+    created = False
+    if tenant is None:
+        tenant, created = _create_tenant(enrichment["name"])
+
+    vm.refresh_from_db(fields=["tenant"])
+    if not override and vm.tenant_id is not None:
+        return
+    conflict = get_vm_by_unique_name_cluster_tenant(vm, tenant.id)
+    if conflict is not None:
+        raise ValueError(
+            "VM name, cluster, and tenant conflict with VM {}".format(conflict.id)
+        )
+    vm.tenant_id = tenant.id
+    vm.tenant = tenant
+    vm.save()
+    stats["assigned"] += 1
+    stats["created"] += int(created)
+    contact_stats = _sync_contacts(tenant, enrichment["contacts"], vm.id)
+    for key, value in contact_stats.items():
+        stats[key] += value
+    print(
+        "[TENANT ENRICHMENT] VM {} assigned to tenant {} (ID {}, "
+        "created={}, ai_confidence={!r}).".format(
+            vm.id, tenant.name, tenant.id, created, confidence
+        )
+    )
 
 
 def _tenant_slug(name):
@@ -477,7 +567,6 @@ def run_tenant_enrichment(
         return stats
 
     ai_enabled = ai_settings.get("enabled", False)
-    ai_provider = provider
     filters = {
         "latest_job": str(job_id),
         "virtual_machine__isnull": False,
@@ -490,6 +579,7 @@ def run_tenant_enrichment(
         .prefetch_related("virtual_machine__tags")
     )
 
+    rows = []
     seen = set()
     for proxbox_vm in proxbox_vms:
         vm = proxbox_vm.virtual_machine
@@ -503,68 +593,7 @@ def run_tenant_enrichment(
         stats["eligible"] += 1
         try:
             tags = sorted(tag.name for tag in vm.tags.all())
-            enrichment = _request_tenant(settings, vm, tags)
-            if enrichment is None:
-                stats["no_match"] += 1
-                if override:
-                    _run_legacy_fallback(vm, stats, "enrichment returned no_match")
-                continue
-            tenant_name = enrichment["name"]
-            stats["contacts_skipped"] += enrichment["skipped_contacts"]
-
-            tenant = _find_exact_tenant(tenant_name)
-            confidence = None
-            if tenant is None and ai_enabled:
-                try:
-                    candidates = _registered_candidates([tenant_name])
-                    if candidates:
-                        ai_provider = ai_provider or provider_factory(ai_settings)
-                        tenant, confidence = _choose_tenant(
-                            ai_provider,
-                            vm.name,
-                            vm.comments or "",
-                            candidates,
-                            ai_settings["minimum_confidence"],
-                            {
-                                "external_tenant_name": tenant_name,
-                                "tags": tags,
-                            },
-                        )
-                except Exception as error:
-                    print(
-                        "[TENANT ENRICHMENT] AI lookup failed for VM {}: {}".format(
-                            vm.id, error
-                        )
-                    )
-
-            created = False
-            if tenant is None:
-                tenant, created = _create_tenant(tenant_name)
-
-            vm.refresh_from_db(fields=["tenant"])
-            if not override and vm.tenant_id is not None:
-                continue
-            conflict = get_vm_by_unique_name_cluster_tenant(vm, tenant.id)
-            if conflict is not None:
-                raise ValueError(
-                    "VM name, cluster, and tenant conflict with VM {}".format(
-                        conflict.id
-                    )
-                )
-            vm.tenant_id = tenant.id
-            vm.tenant = tenant
-            vm.save()
-            stats["assigned"] += 1
-            stats["created"] += int(created)
-            contact_stats = _sync_contacts(tenant, enrichment["contacts"], vm.id)
-            for key, value in contact_stats.items():
-                stats[key] += value
-            print(
-                "[TENANT ENRICHMENT] VM {} assigned to tenant {} (ID {}, "
-                "created={}, ai_confidence={!r}).".format(
-                    vm.id, tenant.name, tenant.id, created, confidence
-                )
-            )
+            rows.append((vm, tags))
         except Exception as error:
             stats["errors"] += 1
             print(
@@ -574,6 +603,132 @@ def run_tenant_enrichment(
             )
             if override:
                 _run_legacy_fallback(vm, stats, error)
+
+    ai_provider = provider
+    workers = settings.get("batch_size", 10) if override else 1
+    with ThreadPoolExecutor(max_workers=workers) as executor:
+        pending = {}
+        remaining = iter(rows)
+
+        def submit_tenant_request():
+            try:
+                vm, tags = next(remaining)
+            except StopIteration:
+                return
+            if override:
+                future = executor.submit(
+                    _call_with_retry,
+                    "tenant request",
+                    vm.id,
+                    _request_tenant,
+                    settings,
+                    vm,
+                    tags,
+                )
+            else:
+                future = executor.submit(_request_tenant, settings, vm, tags)
+            pending[future] = ("tenant", vm, tags, None)
+
+        for _ in range(workers):
+            submit_tenant_request()
+
+        while pending:
+            done, _ = wait(pending, return_when=FIRST_COMPLETED)
+            for future in done:
+                stage, vm, tags, enrichment = pending.pop(future)
+                if stage == "ai":
+                    try:
+                        tenant, confidence = future.result()
+                    except Exception as error:
+                        tenant, confidence = None, None
+                        print(
+                            "[TENANT ENRICHMENT] AI lookup failed for VM {}: {}".format(
+                                vm.id, error
+                            )
+                        )
+                    try:
+                        _apply_enrichment(
+                            vm,
+                            enrichment,
+                            tenant,
+                            confidence,
+                            override,
+                            stats,
+                        )
+                    except Exception as error:
+                        stats["errors"] += 1
+                        print(
+                            "[TENANT ENRICHMENT] VM {} was not changed: {}".format(
+                                vm.id, error
+                            )
+                        )
+                        if override:
+                            _run_legacy_fallback(vm, stats, error)
+                    submit_tenant_request()
+                    continue
+
+                try:
+                    enrichment = future.result()
+                    if enrichment is None:
+                        stats["no_match"] += 1
+                        if override:
+                            _run_legacy_fallback(
+                                vm, stats, "enrichment returned no_match"
+                            )
+                        submit_tenant_request()
+                        continue
+                    tenant_name = enrichment["name"]
+                    stats["contacts_skipped"] += enrichment["skipped_contacts"]
+                    tenant = _find_exact_tenant(tenant_name)
+                    if tenant is None and ai_enabled:
+                        try:
+                            candidates = _registered_candidates([tenant_name])
+                            if candidates:
+                                ai_provider = ai_provider or provider_factory(
+                                    ai_settings
+                                )
+                                args = (
+                                    ai_provider,
+                                    vm.name,
+                                    vm.comments or "",
+                                    candidates,
+                                    ai_settings["minimum_confidence"],
+                                    {
+                                        "external_tenant_name": tenant_name,
+                                        "tags": tags,
+                                    },
+                                )
+                                if override:
+                                    ai_future = executor.submit(
+                                        _call_with_retry,
+                                        "AI request",
+                                        vm.id,
+                                        _choose_tenant,
+                                        *args,
+                                    )
+                                else:
+                                    ai_future = executor.submit(_choose_tenant, *args)
+                                pending[ai_future] = ("ai", vm, tags, enrichment)
+                                continue
+                        except Exception as error:
+                            print(
+                                "[TENANT ENRICHMENT] AI lookup failed for VM {}: {}".format(
+                                    vm.id, error
+                                )
+                            )
+                    _apply_enrichment(
+                        vm, enrichment, tenant, None, override, stats
+                    )
+                except Exception as error:
+                    stats["errors"] += 1
+                    print(
+                        "[TENANT ENRICHMENT] VM {} was not changed: {}".format(
+                            vm.id, error
+                        )
+                    )
+                    if override:
+                        _run_legacy_fallback(vm, stats, error)
+                submit_tenant_request()
 
     print(
         "[TENANT ENRICHMENT] Finished: eligible={eligible}, no_match={no_match}, "
