@@ -57,9 +57,11 @@ class ProxboxConfig(PluginConfig):
             },
             'tenant_enrichment': {
                 'enabled': False,
+                'override_tenant': False,
                 'url': 'https://example.test/tenant-enrichment',
                 'api_key': '',
-                'timeout_seconds': 10
+                'timeout_seconds': 10,
+                'batch_size': 10
             }
         }
     }

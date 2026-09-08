@@ -28,6 +28,7 @@ try:
         NETBOX_TENANT_NAME,
         NETBOX_VM_ROLE_ID,
         NETBOX_VM_ROLE_NAME,
+        TENANT_ENRICHMENT_SETTINGS,
     )
 
     from .nb_tag import (
@@ -434,6 +435,7 @@ def base_add_configuration(netbox_vm, proxmox_vm, config=None):
     use_default_tenant = (
         NETBOX_TENANT_NAME is not None and validate_custom_tag(match_name)
     )
+    override_tenant = TENANT_ENRICHMENT_SETTINGS.get("override_tenant", False)
 
     try:
         if use_default_tenant:
@@ -453,8 +455,11 @@ def base_add_configuration(netbox_vm, proxmox_vm, config=None):
         netbox_vm.save()
         if 'description' in config:
             if not use_default_tenant:
-                netbox_vm = set_tenant(netbox_vm, description)
-            netbox_vm = set_contact_to_vm(description, netbox_vm)
+                if not override_tenant:
+                    netbox_vm = set_tenant(netbox_vm, description)
+                    netbox_vm = set_contact_to_vm(description, netbox_vm)
+            else:
+                netbox_vm = set_contact_to_vm(description, netbox_vm)
         # else:
         # print('no description')
     except Exception as e2:
